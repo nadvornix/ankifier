@@ -1,0 +1,31 @@
+{
+  "manifest_version": 2,
+
+  "name": "Ankifier",
+  "description": "Quick and easy way of making anki flashcards. Shortcut: CTRL+select a word.",
+  "version": "0.1",
+
+
+  "browser_action": {
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  },
+
+  "content_scripts": [
+        {
+        "matches": [
+            "http://*/*",
+            "https://*/*"
+            ],
+        "js": ["inject_everywhere.js"],
+        "run_at": "document_end"         // pay attention to this line
+        }
+    ], 
+
+  "permissions": [
+    "activeTab",
+    "https://ajax.googleapis.com/",
+    "tabs",
+    "<all_urls>"
+  ]
+}

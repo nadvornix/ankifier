@@ -1,0 +1,38 @@
+
+TODO:
+- neexistujici slova - exception
+- log exceptions
+- download wordnik audio files
+- jednoduší přehrávátka mp3
+
+- wordnik frequency is not working well
+- idea: use google n-gram
+- todo: also export it in some format that I will be able to process later. 
+    - eg: for pronuntiation cards, etc.
+
+- napsat wordnik ze jim chybi source in etymology in API
+- autor v examples
+- popis co znamená phrases
+- longman is giving base-form of word, -> including related words in pronountiation, etc. Eg: "appending"
+- vyfiltrovt/napsat příbuzný slova namísto přesného znění které zadám
+
+- opravit otravný ctrl+click v okamžicích kdy to nechci
+
+Etymology:
+- ani longman ani macmilian to nedávají
+
+
+
+Longman api:
+https://api.pearson.com/v2/dictionaries/ldoce5/entries?headword=test&apikey=CkUphfvJ1PSlGAinHU9BAy7jx1xHg6gt
+secret key: lOG9P62KN5ay8UCg
+
+
+
+possible source:
+https://words.bighugelabs.com/eloquence
+
+long term:
+- nice js loading
+- wysiwig editor
+

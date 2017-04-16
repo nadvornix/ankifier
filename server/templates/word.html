@@ -1,0 +1,266 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ankifier!</title>
+</head>
+<body>
+
+<form method="POST" action="">
+<input type="submit"></input><br>
+Word: <input type="text" name="w" value="{{word}}"/><br>
+Sentence: <input type="text" name="s" value="{{sentence}}"/><br>
+
+
+{%if 'cannonical' in results %}
+Cannonical: {{results.cannonical}} <br>
+{% endif %}
+
+Pronunciations:
+{%if 'pronunciations' in results %}
+    <ul>
+    {%for p in results.pronunciations %}
+        <label><input type="checkbox" name="pronunciations" value="{{p.raw}}">{{p.raw}}</label><br>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+{% if 'ipas' in results.pearson %}
+    <ul>
+    {%for ipa in results.pearson.ipas %}
+        <label><input type="checkbox" name="pronunciations" value="{{ipa}}">{{ipa}}</label><br>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+Audio:
+{%if 'audios' in pearson %}
+<ul>
+    {% for audio in pearson.audios %}
+        <li><label><input type="checkbox" name="audio" value="http://api.pearson.com{{audio.url}}">(pearson) <a href="http://api.pearson.com{{audio.url}}">{{audio.lang}}</a></li>
+    {%endfor%}
+</ul>
+{%endif%}
+
+<ul>
+{%if 'audio' in results %}
+    {%for a in results.audio %}
+        <li><label><input type="checkbox" name="audio" value="{{a.fileUrl}}">{{a.fileUrl}} by {% if a.attributionUrl %}<a href="{{a.attributionUrl}}">{{a.createdBy}}</a>{%else%} {{a.createdBy}} {%endif%}</label>
+    {% endfor %}
+{% endif %}
+</ul>
+
+Definitions:
+{% if 'senses' in pearson %}
+    <ul>
+    {% for s in pearson.senses %} 
+    {# todo: add register_label to the value#}
+        <li><label><input type="checkbox" name="definition" value="{{s.part_of_speech}}###!###{{s.definition[0]}}">{%if 'register_label' in s %}<em>{{s.register_label}}</em> {%endif%}{{word}} ({{s.part_of_speech}}) {{s.definition[0]}}.</label></li>
+    {%endfor%}
+    </ul>
+{% endif %}
+
+{%if 'definitions' in results %}
+<ul>
+{%for d in results.definitions %}
+    <li><label><input type="checkbox" name="definition" value="{{d.partOfSpeech}})###!###{{d.text}}">{{d.word}} ({{d.partOfSpeech}}) {{d.text}} (by {% if d.attributionUrl %}<a href="{{d.attributionUrl}}">{{d.sourceDictionary}}</a>{%else%}{{d.sourceDictionary}}{%endif%})
+    </label></li>
+{%endfor%}
+</ul>
+{% endif %}
+
+Examples:
+<ul>
+{%for e in pearson.examples %}
+    <li><label><input type="checkbox" name="example" value="{{e}}">{{e}}</label></li>
+{%endfor%}
+</ul>
+
+
+{% if 'slovnik' in results %}
+ SLOVNIK:
+ <ul>
+ {% for a,b in results.slovnik %}
+    <label><input type="checkbox" name="slovnik" value="{{a}}###!###{{b}}">{{a}} -- {{b}}</label><br>
+ {% endfor %}
+ </ul>
+{% endif%}
+
+{%if 'etymologies' in results %}
+<ul>
+Etymology:
+{%for e in results.etymologies %}
+    <label><input type="checkbox" name="etymologies" value="{{e|safe}}">{{e|safe}}</label><br>
+{% endfor %}
+</ul>
+{% endif %}
+
+
+
+{%if 'equivalent' in results.relatedWords%}
+<strong>Equivalent</strong>: 
+    {%for w in results.relatedWords.equivalent %}
+        <label><input type="checkbox" name="equivalent" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'synonym' in results.relatedWords%}
+<strong>Synonym</strong>: 
+    {%for w in results.relatedWords.synonym %}
+        <label><input type="checkbox" name="synonym" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'variant' in results.relatedWords%}
+<strong>Variants</strong>: 
+    {%for w in results.relatedWords.variant %}
+        <label><input type="checkbox" name="variant" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'verb-stem' in results.relatedWords%}
+<strong>Verb stem</strong>: 
+    {%for w in results.relatedWords["verb-stem"] %}
+        <label><input type="checkbox" name="verb-stem" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'related-word' in results["relatedWords"]%}
+<strong>Related words</strong>: 
+    {%for w in results.relatedWords["related-word"] %}
+        <label><input type="checkbox" name="related-word" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'hypernym' in results["relatedWords"]%}
+<strong>Hypernyms</strong>: 
+    {%for w in results.relatedWords["hypernym"] %}
+        <label><input type="checkbox" name="hypernym" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'primary' in results["relatedWords"]%}
+<strong>Primary</strong>: 
+    {%for w in results.relatedWords["primary"] %}
+        <label><input type="checkbox" name="primary" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'same-context' in results["relatedWords"]%}
+<strong>Same context</strong>: 
+    {%for w in results.relatedWords["same-context"] %}
+        <label><input type="checkbox" name="same-context" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'antonym' in results["relatedWords"]%}
+<strong>Antonyms</strong>: 
+    {%for w in results.relatedWords["antonym"] %}
+        <label><input type="checkbox" name="antonym" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'cross-reference' in results["relatedWords"]%}
+<strong>Cross reference</strong>: 
+    {%for w in results.relatedWords["cross-reference"] %}
+        <label><input type="checkbox" name="cross-reference" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'rhyme' in results["relatedWords"]%}
+<strong>Rhymes</strong>: 
+    {%for w in results.relatedWords["rhyme"] %}
+        <label><input type="checkbox" name="rhyme" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'form' in results["relatedWords"]%}
+<strong>Forms</strong>: 
+    {%for w in results.relatedWords["form_"] %}
+        <label><input type="checkbox" name="form" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'hyponym' in results["relatedWords"]%}
+<strong>Hyponym</strong>: 
+    {%for w in results.relatedWords["hyponym"] %}
+        <label><input type="checkbox" name="hyponym" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'inflected-form' in results["relatedWords"]%}
+<strong>Inflected form</strong>: 
+    {%for w in results.relatedWords["inflected-form"] %}
+        <label><input type="checkbox" name="inflected-form" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+{%if 'verb-form' in results["relatedWords"]%}
+<strong>Verb form</strong>: 
+    {%for w in results.relatedWords["verb-form"] %}
+        <label><input type="checkbox" name="verb-form" value="{{w}}">{{w}}</label>, 
+    {%endfor%}
+    <br/>
+{%endif%}
+
+{#
+equivalent
+synonym
+variant
+verb-stem
+related-word
+etymologically-related-term
+hypernym
+primary
+same-context
+antonym
+cross-reference
+rhyme
+form
+hyponym
+inflected-form
+verb-form
+#}
+{#
+{%if 'phrases' in results %}
+Phrases:
+ {{results.phrases}}
+{% endif %}
+#}
+
+{# {{results.images}} #}
+
+{% if results.images['value'] %}
+    {% for image in results.images['value'] %}
+        <li><label><input type="radio" name="image" value="{{image.thumbnailUrl}}"><img src="{{image.thumbnailUrl}}">
+    {% endfor %}
+{%endif%}
+
+{%if 'examples' in results %}
+<ul>
+Examples:
+{%for e in results.examples %}
+    <li><label><input type="checkbox" name="example" value="{{e}}">{{e}}
+    </label></li>
+{%endfor%}
+</ul>
+{% endif %}
+
+
+
+{#
+        "cannonical": lambda data: data.get("canonicalForm"),
+        "examples": lambda data: [d["text"] for d in data.get("examples")],
+        "definitions": lambda data: data,
+        "relatedWords": lambda data: data,
+        "pronunciations": lambda data: data,
+        "phrases": lambda data: data,
+        "etymologies": lambda data: data,
+        "audio": lambda data: data,
+#}
+
+<input type="submit"></input>
+</form>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+<strong>{{data.w[0]}}</strong> &nbsp;
+{% if data.pronunciations %}
+(<em>
+{%for pron in data.pronunciations %}
+{{pron}}{% if not loop.last %}, {% endif %}
+{% endfor %}
+</em>)
+{%endif%}
+
+{% if definitions %}
+<ul>
+    {% for def in definitions %}
+    <li>{{def|safe}}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<ul>
+{%for elem in slovnik %}
+<li>{{elem}}</li>
+{%endfor%}
+</ul>
+
+{% if data.example %}
+Examples:
+<em>
+<ul>
+    {% for ex in data.example %}
+    <li>{{ex}}</li>
+    {% endfor %}
+</ul>
+</em>
+{% endif %}
+
+{% if img_filename %}
+<img src="{{img_filename}}" /><br/>
+{% endif %}
+
+{% if audio_filename %}
+[sound:{{audio_filename}}] </br>
+{% endif %}
+
+
+
+{%if data.equivalent %}
+    <strong>equivalent: </strong>
+    {%for elem in data.equivalent %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+{%if data.synonym %}
+    <strong>synonym: </strong>
+    {%for elem in data.synonym %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data.variant %}
+    <strong>variant: </strong>
+    {%for elem in data.variant %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data["verb-stem"] %}
+    <strong>Verb stem: </strong>
+    {%for elem in data["verb-stem"] %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data["related-word"] %}
+    <strong>Related words: </strong>
+    {%for elem in data["related-word"] %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data.hypernym %}
+    <strong>hypernyms: </strong>
+    {%for elem in data.hypernym %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data.primary %}
+    <strong>primary: </strong>
+    {%for elem in data.primary %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data["same-context"] %}
+    <strong>Same context: </strong>
+    {%for elem in data["same-context"] %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data.antonym %}
+    <strong>antonym: </strong>
+    {%for elem in data.antonym %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data["cross-reference"] %}
+    <strong>Cross reference: </strong>
+    {%for elem in data["cross-reference"] %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data.rhyme %}
+    <strong>rhymes: </strong>
+    {%for elem in data.rhyme %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data.form %}
+    <strong>form: </strong>
+    {%for elem in data.form %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data.hyponym %}
+    <strong>hyponym: </strong>
+    {%for elem in data.hyponym %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data["inflected-form"] %}
+    <strong>inflected form: </strong>
+    {%for elem in data["inflected-form"] %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
+
+{%if data["verb-form"] %}
+    <strong>verb form: </strong>
+    {%for elem in data["verb-form"] %}
+        {{elem}}{% if not loop.last %},{% endif %}
+    {%endfor%} <br/>
+{%endif%}
