@@ -11,12 +11,20 @@
 Word: <input type="text" name="w" value="{{word}}"/><br>
 Sentence: <input type="text" name="s" value="{{sentence}}"/><br>
 
+{% if suggestions %}
+    Did you mean: 
+    {% for suggestion in suggestions %}
+        <a href="/word?w={{suggestion}}&s={{sentence}}">{{suggestion}}</a>
+    {% endfor %}
+
+{% endif%}
 
 {%if 'cannonical' in results %}
-Cannonical: {{results.cannonical}} <br>
+    <p>Cannonical: {{results.cannonical}} <br>
 {% endif %}
 
 Pronunciations:
+{#
 {%if 'pronunciations' in results %}
     <ul>
     {%for p in results.pronunciations %}
@@ -24,6 +32,7 @@ Pronunciations:
     {% endfor %}
     </ul>
 {% endif %}
+#}
 
 {% if 'ipas' in results.pearson %}
     <ul>
@@ -37,7 +46,8 @@ Audio:
 {%if 'audios' in pearson %}
 <ul>
     {% for audio in pearson.audios %}
-        <li><label><input type="checkbox" name="audio" value="http://api.pearson.com{{audio.url}}">(pearson) <a href="http://api.pearson.com{{audio.url}}">{{audio.lang}}</a></li>
+        <li><label><input type="checkbox" name="audio" class="audioplayer" value="http://api.pearson.com{{audio.url}}">(pearson) <a href="http://api.pearson.com{{audio.url}}">{{audio.lang}}</a> <audio controls="controls" preload="auto"><source src="http://api.pearson.com{{audio.url}}" type="audio/mpeg" /></audio> {{audio.filename}}
+ </li>
     {%endfor%}
 </ul>
 {%endif%}
@@ -45,7 +55,7 @@ Audio:
 <ul>
 {%if 'audio' in results %}
     {%for a in results.audio %}
-        <li><label><input type="checkbox" name="audio" value="{{a.fileUrl}}">{{a.fileUrl}} by {% if a.attributionUrl %}<a href="{{a.attributionUrl}}">{{a.createdBy}}</a>{%else%} {{a.createdBy}} {%endif%}</label>
+        <li><label><input type="checkbox" name="audio" class="audioplayer" value="{{a.fileUrl}}"> {% if a.attributionUrl %}<a href="{{a.attributionUrl}}">{{a.createdBy}}</a>{%else%} {{a.createdBy}} {%endif%} <audio controls="controls" preload="auto"><source src="{{a.fileUrl}}" type="audio/mpeg" /></audio></label>
     {% endfor %}
 {% endif %}
 </ul>
@@ -55,15 +65,23 @@ Definitions:
     <ul>
     {% for s in pearson.senses %} 
     {# todo: add register_label to the value#}
-        <li><label><input type="checkbox" name="definition" value="{{s.part_of_speech}}###!###{{s.definition[0]}}">{%if 'register_label' in s %}<em>{{s.register_label}}</em> {%endif%}{{word}} ({{s.part_of_speech}}) {{s.definition[0]}}.</label></li>
+        <li><label><input type="checkbox" name="definition" value="{{s.part_of_speech}}###!###{{s.definition[0]}}">{{word}} {% if s.part_of_speech or s.register_label %}({{s.part_of_speech}}{%if 'register_label' in s %} <em>{{s.register_label}}</em> {%endif%}){%endif%} {{s.definition[0]}}.</label></li>
     {%endfor%}
     </ul>
 {% endif %}
 
+{% if 'glosbe' in results %}
+<ul>
+    {% for d in results.glosbe.definitions %} 
+        <li><label><input type="checkbox" name="definition" value="###!###{{d}}">{{word}} {{d}}.</label></li>
+    {%endfor%}
+    </ul>
+{%endif%}
+
 {%if 'definitions' in results %}
 <ul>
 {%for d in results.definitions %}
-    <li><label><input type="checkbox" name="definition" value="{{d.partOfSpeech}})###!###{{d.text}}">{{d.word}} ({{d.partOfSpeech}}) {{d.text}} (by {% if d.attributionUrl %}<a href="{{d.attributionUrl}}">{{d.sourceDictionary}}</a>{%else%}{{d.sourceDictionary}}{%endif%})
+    <li><label><input type="checkbox" name="definition" value="{{d.partOfSpeech}})###!###{{d.text}}">{{d.word}} {% if d.part_of_speech %}({{d.partOfSpeech}}){%endif%} {{d.text}} (by {% if d.attributionUrl %}<a href="{{d.attributionUrl}}">{{d.sourceDictionary}}</a>{%else%}{{d.sourceDictionary}}{%endif%})
     </label></li>
 {%endfor%}
 </ul>
@@ -77,24 +95,14 @@ Examples:
 </ul>
 
 
-{% if 'slovnik' in results %}
- SLOVNIK:
+{% if 'glosbe' in results %}
+ Translations:
  <ul>
- {% for a,b in results.slovnik %}
-    <label><input type="checkbox" name="slovnik" value="{{a}}###!###{{b}}">{{a}} -- {{b}}</label><br>
+ {% for translation in results.glosbe.translations %}
+    <label><input type="checkbox" name="glosbe" value="{{translation}}">{{translation}}</label><br>
  {% endfor %}
  </ul>
 {% endif%}
-
-{%if 'etymologies' in results %}
-<ul>
-Etymology:
-{%for e in results.etymologies %}
-    <label><input type="checkbox" name="etymologies" value="{{e|safe}}">{{e|safe}}</label><br>
-{% endfor %}
-</ul>
-{% endif %}
-
 
 
 {%if 'equivalent' in results.relatedWords%}
@@ -107,7 +115,7 @@ Etymology:
 {%if 'synonym' in results.relatedWords%}
 <strong>Synonym</strong>: 
     {%for w in results.relatedWords.synonym %}
-        <label><input type="checkbox" name="synonym" value="{{w}}">{{w}}</label>, 
+        <label><input type="checkbox" name="synonym" value="{{w}}"><a href="/word?w={{w}}">{{w}}</a></label>, 
     {%endfor%}
     <br/>
 {%endif%}
@@ -238,26 +246,7 @@ Phrases:
 
 {%if 'examples' in results %}
 <ul>
-Examples:
-{%for e in results.examples %}
-    <li><label><input type="checkbox" name="example" value="{{e}}">{{e}}
-    </label></li>
-{%endfor%}
-</ul>
-{% endif %}
 
-
-
-{#
-        "cannonical": lambda data: data.get("canonicalForm"),
-        "examples": lambda data: [d["text"] for d in data.get("examples")],
-        "definitions": lambda data: data,
-        "relatedWords": lambda data: data,
-        "pronunciations": lambda data: data,
-        "phrases": lambda data: data,
-        "etymologies": lambda data: data,
-        "audio": lambda data: data,
-#}
 
 <input type="submit"></input>
 </form>

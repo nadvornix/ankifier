@@ -1,3 +1,6 @@
+INSTALL:
+dependency: portaudio package in ubuntu
+- libhunspell-dev
 
 TODO:
 - neexistujici slova - exception
@@ -36,3 +39,97 @@ long term:
 - nice js loading
 - wysiwig editor
 
+words.txt -> chrome:
+cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
+
+NOTES:
+- bylo by fajn moci v tomto rozhraní i vyrobit úplně vlastní kartičky
+- je nepohodlné že musím scrollovat abych zmačkl "submit"
+- automatický preselect: "wiki" = ostatní uživatelé, pak british audio, first image...
+
+
+TODO:
+- vymyslet deploy
+	- lepší (asynchroní v js) stahování dat
+	- make server parallel/asynchronous enough
+	- dělat něco s víceslovnýma spojeníma
+- zobrazit jenom ty části které většinou zaškrtnu, a ty ostatní jen mimochodem.
+
+- z audia předvybrat tu která je nejpodobnější
+	(jednostraná L-distance?)
+
+- vzhled
+- udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
+
+- méně redundantní šablony (včetně odkazů na synonyma, atd.)
+- zvuk nefunguje v ankidroid.
+- dovymyslet: víceuživatelský systém
+
+- smazat kartu "prediction z anki :-)
+- udělat hezčí způsob jak udělat word.html
+
+- cvičit rozdíly ve významech slov
+- idea: namísto odstranění významů, přidat odkazy na příbuzné významy/headwords
+- word?w=%20s=, w=, just word?...
+- buď spravit sentence v chrome, nebo odstranit políčko.
+- refactor imports
+- throw away unused api calls
+
+DONE:
+- audioplayer
+- key shortcut for submission - just enter :-)
+- možnost změnit slovo a znovunačíst stránku - just change url. 
+- ošetřit None v slovním druhu u definic (vyskytuje se u vlastních jmen)
+- lepší ipas
+- extrahovat co je v audiu a napsat to vedle něj a vybrat podle toho nejbližší match.
+- mít odkaz u synonym a dalších slov na přidání i toho slova. Bude dokončeno po udělání lepšího způsobu generování šablony.
+- "old-fashioned consumption (noun) someone.." -> "consumption (noun, old-fashioned) someone..."
+
+
+Less important:
+- vlastní slovo kt. zadat do bing images & drag&drop image selection
+- otravné: když zmáčknu mezerník tak se odoznačí poslední kousek co jsem označil. Nemísto paby popojela obrazovka. - pak to bude menší na výšku.
+- dát informaci o tom jak moc se dané slovo používá a jak moc je britské/americké high/low class
+- jak v šablonách dělat odkazy na sebe?
+- víceslovní spojení moc nefungují. rozložím je na jednotlivá slova
+
+LATER:
+- problém: heather -> různá vlastní jména.
+- volba us/gb (spellcheck, ipas, mp3s...)
+
+
+NOTES:
+- Nesmíme moc zadávat víceslovní spojení.
+
+--
+
+Errors: inveighing, encroache
+
+DOBRÉ WEBY:
+- https://wordpandit.com/
+- http://www1.icsi.berkeley.edu/~demelo/etymwn/
+	- resp. lexvo.org - dají se vytahat i překlady a pod. Resp. různé rozšíření wordnetu
+- https://glosbe.com/en/cs/prediction
+	- větší fráze vč. překladu
+
+TO CHECK:
+- jestli se v anki zobrazují správně všechna políčka
+
+Heuristiky:
+- dolní skupina IPAs
+- nejspodnější audio z první skupiny
+
+Before public launch:
+- log exceptions & put there logging
+- think how it is able to sustain traffic?
+	- esp. malicious/bad-formatted/super-long...
+- disable debug mode
+- make easy deployment
+- make public links to API I use.
+- ask for higher API quotas.
+- make it less fragile
+
+GLOSBE:
+spanish, russian, portuguese, french, german, polish, czech, italian
+spa, rus, por, fra, deu, pol, ces, ita
+..proč raději nepřidat všechny?

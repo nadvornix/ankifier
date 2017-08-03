@@ -1,6 +1,7 @@
 from IPython import embed
 import requests
 import json
+from os import path
 import time
 from pprint import pprint
 from datetime import timedelta
@@ -9,6 +10,7 @@ from bs4 import BeautifulSoup
 from lxml import etree
 import itertools
 import http.client, urllib.request, urllib.parse, urllib.error
+import hunspell
 
 from hashlib import md5
 
@@ -16,12 +18,14 @@ from flask import Flask
 from flask import render_template
 from flask import request
 from flask import session
-app = Flask(__name__)
+
+app = Flask(__name__, static_url_path='/static')
 
 wordnikApiUrl = 'http://api.wordnik.com/v4/'
 wordnikApiKey = '6ba4e1c8a2b0546c7b0080b84fd08feb6ffdd3de24ea7b8c1'
 # wordnik = swagger.ApiClient(wordnikApiUrl, wordnikApiKey)
 
+hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic', '../spellcheck_dicts/en_GB.aff')
 
 @app.before_request
 def make_session_permanent():
@@ -62,7 +66,7 @@ def get_pearson_data(word, pool, futures):
 
     def fut(word):
         data_json = requests.get(url.format(word=word), headers={"Accept": "application/json"}).text
-        print("###", data_json)
+        # print("###", data_json)
         if not data_json:
             return None
         data = json.loads(data_json)
@@ -70,12 +74,30 @@ def get_pearson_data(word, pool, futures):
         selected_dicts = ["ldoce5", "lasde", "wordwise", "laad3"]
         selected_results = [r for r in results if (set(r["datasets"]) & set(selected_dicts))]
         
-        ipas = {a.get("ipa") for r in selected_results if r.get("pronunciations") for a in r["pronunciations"] if a.get("ipa")}
-        audios = [a["audio"] for r in selected_results if r.get("pronunciations") for a in r["pronunciations"] if a.get("audio")]
-        audios = list(itertools.chain.from_iterable(audios))  # flatten
+        ipas = []
 
-        examples = [e.get("text") for r in selected_results for s in r["senses"] if s.get("examples") for e in s["examples"]]
-        
+        for r in selected_results:
+            if r.get("pronunciations"):
+                for pron in r["pronunciations"]:
+                    if pron.get("ipa"):
+                        ipas.append(pron["ipa"])
+                        break  # just from inner cycle
+
+        all_audios = []
+        for r in selected_results:
+            if r.get("pronunciations"):
+                for pron in r["pronunciations"]:
+                    
+                    if pron.get("audio"):
+                        for a in pron["audio"]:
+                            a["filename"] = path.basename(a["url"])
+                        all_audios.append(pron["audio"])
+
+
+        # ipas = {a.get("ipa") for r in selected_results if r.get("pronunciations") for a in r["pronunciations"] if a.get("ipa")}
+        # audios = [a["audio"] for r in selected_results if r.get("pronunciations") for a in r["pronunciations"] if a.get("audio")]
+        audios = list(itertools.chain.from_iterable(all_audios))  # flatten
+
         senses = []
         for r in selected_results:
             if r.get("senses"):
@@ -88,39 +110,46 @@ def get_pearson_data(word, pool, futures):
                     else:
                         senses.append(s)
 
-        print ({"ipas": ipas, "audios": audios, "senses": senses, "examples": examples})
-        return {"ipas": ipas, "audios": audios, "senses": senses, "examples": examples}
+        return {"ipas": ipas, "audios": audios, "senses": senses}
 
     futures["pearson"] = pool.submit(fut, (word))
 
+def get_glosbe_data(word, from_, dest, pool, futures):
+    url = "https://glosbe.com/gapi/translate?from={from_}&dest={dest}&format=json&phrase={word}&pretty=true"
 
-def get_slovnik_data(word, pool, futures):
-    url = "http://slovnik.cz/bin/mld.fpl?vcb={word}&trn=p%C5%99elo%C5%BEit&dictdir=encz.en&lines=100&js=0"
-    
     def fut(word):
-        html_doc = requests.get(url.format(word=word)).text
-
-        soup = BeautifulSoup(html_doc, 'html.parser')
+        json_doc = requests.get(url.format(word=word, from_=from_, dest=dest)).text
+        data = json.loads(json_doc)
         translations = []
+        definitions = []
+        for item in data['tuc']:
+            if 'phrase' in item:
+                translations.append(item['phrase']['text'])  # xxx: fragile
+            if 'meanings' in item:
+                for meaning in item['meanings']:
+                    definitions.append(meaning['text'])  # xxx: fragile
+        print(translations, definitions)
+        return {"translations":translations, "definitions": definitions}
 
-        for pair in soup.find_all(class_="pair"):
-            [s.extract() for s in pair('i')]
-            l = pair.find(class_="l").text
-            r = pair.find(class_="r").text
-            translations.append((l, r))
-        return translations
-    futures["slovnik"] = pool.submit(fut, (word))
+    futures["glosbe"] = pool.submit(fut, (word))
 
-def process_ety(data):
-    return data
-    # etymologies=[]
-    # for etymology in data:
-    #     b=etree.XML(etymology.encode("utf-8"))
-    #     for c in b.xpath("//er"):
-    #         c.tag = 'em'
-    #     etymology_html = etree.tostring(b, encoding='unicode')
-    #     etymologies.append(etymology_html)
-    # return etymologies
+# def get_slovnik_data(word, pool, futures):
+#     url = "http://slovnik.cz/bin/mld.fpl?vcb={word}&trn=p%C5%99elo%C5%BEit&dictdir=encz.en&lines=100&js=0"
+    
+#     def fut(word):
+#         html_doc = requests.get(url.format(word=word)).text
+
+#         soup = BeautifulSoup(html_doc, 'html.parser')
+#         translations = []
+
+#         for pair in soup.find_all(class_="pair"):
+#             [s.extract() for s in pair('i')]
+#             l = pair.find(class_="l").text
+#             r = pair.find(class_="r").text
+#             translations.append((l, r))
+#         return translations
+#     futures["slovnik"] = pool.submit(fut, (word))
+
 
 def process_related(data):
     return {d["relationshipType"]: d["words"] for d in data}
@@ -129,31 +158,24 @@ def get_wordnik_data(word, pool, futures):
 
     process_data = {
         "cannonical": lambda data: data.get("canonicalForm"),
-        "examples": lambda data: [d["text"] for d in (data.get("examples") or [])],
         "definitions": lambda data: data,
         "relatedWords": process_related,
         "pronunciations": lambda data: data,
         "phrases": lambda data: data,
-        "etymologies": process_ety,
         "audio": lambda data: data,
     }
 
     def download_wordnik_data(params):
         name, url = params
         data = requests.get(wordnikApiUrl + url.format(word=word), params={"api_key": wordnikApiKey}).json()
-        # print (">>", r.text)
-        # data = json.loads(r.text)
-        # pprint(data)
         return process_data[name](data)
 
     urls = {
         "cannonical": "word.json/{word}?useCanonical=true&includeSuggestions=true",
-        "examples": "word.json/{word}/examples?includeDuplicates=false&useCanonical=false&skip=0&limit=100",
         "definitions": "word.json/{word}/definitions?limit=200&includeRelated=true&sourceDictionaries=all&useCanonical=false&includeTags=false",
         "relatedWords": "word.json/{word}/relatedWords?useCanonical=false&limitPerRelationshipType=100",
         "pronunciations": "word.json/{word}/pronunciations?useCanonical=false&limit=50",
         "phrases": "word.json/{word}/phrases?limit=50&wlmi=0&useCanonical=false",
-        "etymologies": "word.json/{word}/etymologies?useCanonical=false",
         "audio": "word.json/{word}/audio?useCanonical=false&limit=50",
     }
 
@@ -181,7 +203,7 @@ def download(url, base_path):
 def process_data(data):
     from anki import Collection as aopen
 
-    base_path = "/home/jirka/Documents/Anki/User 1/"
+    base_path = "/home/jiri/.local/share/Anki2/User 1/"
     deck = aopen(base_path + "collection.anki2")
     try:
         deckId = deck.decks.id("English2")
@@ -201,7 +223,8 @@ def process_data(data):
             audio_filename = download(data["audio"][0], base_path)
 
         fact['Back'] = render_template('anki_card.html', data=data, 
-            slovnik=[" - ".join(item.split("###!###")) for item in (data.get("slovnik") or [])],
+            # slovnik=[" - ".join(item.split("###!###")) for item in (data.get("slovnik") or [])],
+            glosbe=[" - ".join(data.get("glosbe") or [])],
             definitions=["<em>({0})</em> {1}".format(*item.split("###!###")) for item in (data.get("definition") or [])],
             img_filename=img_filename,
             audio_filename=audio_filename
@@ -216,47 +239,27 @@ def process_data(data):
 
 @app.route("/word", methods=['GET', 'POST'])
 def word():
-    # nltk.data.path.append(".")
     if request.method == 'POST':
-        # s = request.form['s']
-        # w = request.form['w']
-        # slovnik = [v.split("###!###") for k,v in request.form.items() if k.startswith("slovnik")]
-        # data = {}
-        # embed()
-        # return "imported"
-        
         data_raw = dict(list(request.form.lists()))
         process_data(data_raw)
-        # try:
-        #     with open("data.json", "r") as f:
-        #         data = json.load(f)
-        # except FileNotFoundError:
-        #     data = []
 
-
-        # data.append(data_raw)
-        # with open("data.json", "w") as f:
-        #     json.dump(data, f, indent=4, sort_keys=True)
-
-        # for k, v in request.form.items:
-        #     if k not in data:
-        #         data[k] = []
-        #     data[k].append(v)
-
-        # embed()
         return "OK :-)"
 
     word = request.args.get('w')
+    # XXX: if word==None then we have trouble
     sentence = request.args.get('s')
-    print (word, sentence)
+
+    suggestions = None
+    if not hobj.spell(word):
+        suggestions = hobj.suggest(word)
 
     pool = ThreadPoolExecutor(50)
     futures = {}
-
     
     get_images_data(word, pool, futures)
     get_wordnik_data(word, pool, futures)
-    get_slovnik_data(word, pool, futures)
+    # get_slovnik_data(word, pool, futures)
+    get_glosbe_data(word, "eng", "ces", pool, futures)
     get_pearson_data(word, pool, futures)
     time.sleep(15)
     # todo: active waiting
@@ -268,9 +271,8 @@ def word():
         else:
             print (future, "is not done")
 
-    pprint(results)
     pearson = results.get("pearson") or {}
-    return render_template('word.html', word=word, sentence=sentence, results=results, pearson=pearson)
+    return render_template('word.html', word=word, sentence=sentence, results=results, pearson=pearson, suggestions=suggestions)
 
 app.secret_key = 'jdf5fgmb.45f§elpjh)2jk4545*/*/f8dh*/d.-,.'
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=365*10)

@@ -1,0 +1,5 @@
+lxml
+requests
+ipython
+beautifulsoup4
+Flask
