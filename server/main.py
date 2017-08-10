@@ -1,36 +1,32 @@
 from IPython import embed
-import requests
-import json
+import itertools
+from lxml import etree
 from os import path
+import json
 import time
 from pprint import pprint
-from datetime import timedelta
-from concurrent.futures import ThreadPoolExecutor
-from bs4 import BeautifulSoup
-from lxml import etree
-import itertools
-import http.client, urllib.request, urllib.parse, urllib.error
-import hunspell
-
 from hashlib import md5
+import http.client, urllib.request, urllib.parse, urllib.error
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 
-from flask import Flask
-from flask import render_template
-from flask import request
-from flask import session
+from bs4 import BeautifulSoup
+import hunspell
+import requests
+import nltk
+from fuzzywuzzy import process
+from flask import Flask, render_template, request, session
 
 app = Flask(__name__, static_url_path='/static')
 
 wordnikApiUrl = 'http://api.wordnik.com/v4/'
 wordnikApiKey = '6ba4e1c8a2b0546c7b0080b84fd08feb6ffdd3de24ea7b8c1'
-# wordnik = swagger.ApiClient(wordnikApiUrl, wordnikApiKey)
 
 hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic', '../spellcheck_dicts/en_GB.aff')
 
 @app.before_request
 def make_session_permanent():
     session.permanent = True
-
 
 def get_images_data(word, pool, futures):
 
@@ -60,9 +56,44 @@ def get_images_data(word, pool, futures):
 
     futures["images"] = pool.submit(fut, (word))
 
+def parse_pronunciations(results):
+    ipas = []
+    for r in results:
+            if r.get("pronunciations"):
+                for pron in r["pronunciations"]:
+                    if pron.get("ipa"):
+                        ipas.append(pron["ipa"])
+                        break  # just from inner cycle
+    return ipas
+
+def parse_audios(results):
+    all_audios = []
+    for r in results:
+        if r.get("pronunciations"):
+            for pron in r["pronunciations"]:
+                
+                if pron.get("audio"):
+                    for a in pron["audio"]:
+                        a["filename"] = path.basename(a["url"])
+                    all_audios.append(pron["audio"])
+
+    return list(itertools.chain.from_iterable(all_audios))  # flatten
+
+def parse_senses(results):
+    senses = []
+    for r in results:
+        if r.get("senses"):
+            for s in r["senses"]:
+                s["part_of_speech"] = r.get("part_of_speech")
+                s["definition"] = s.get("definition") or ''
+                if s.get("definition") and type(s["definition"]) != list:
+                    s["definition"] = [s["definition"]]
+                else:
+                    senses.append(s)
+    return senses
+
 def get_pearson_data(word, pool, futures):
     url = "http://api.pearson.com/v2/dictionaries/entries?headword={word}&limit=100"
-
 
     def fut(word):
         data_json = requests.get(url.format(word=word), headers={"Accept": "application/json"}).text
@@ -74,41 +105,9 @@ def get_pearson_data(word, pool, futures):
         selected_dicts = ["ldoce5", "lasde", "wordwise", "laad3"]
         selected_results = [r for r in results if (set(r["datasets"]) & set(selected_dicts))]
         
-        ipas = []
-
-        for r in selected_results:
-            if r.get("pronunciations"):
-                for pron in r["pronunciations"]:
-                    if pron.get("ipa"):
-                        ipas.append(pron["ipa"])
-                        break  # just from inner cycle
-
-        all_audios = []
-        for r in selected_results:
-            if r.get("pronunciations"):
-                for pron in r["pronunciations"]:
-                    
-                    if pron.get("audio"):
-                        for a in pron["audio"]:
-                            a["filename"] = path.basename(a["url"])
-                        all_audios.append(pron["audio"])
-
-
-        # ipas = {a.get("ipa") for r in selected_results if r.get("pronunciations") for a in r["pronunciations"] if a.get("ipa")}
-        # audios = [a["audio"] for r in selected_results if r.get("pronunciations") for a in r["pronunciations"] if a.get("audio")]
-        audios = list(itertools.chain.from_iterable(all_audios))  # flatten
-
-        senses = []
-        for r in selected_results:
-            if r.get("senses"):
-                for s in r["senses"]:
-                    s["part_of_speech"] = r.get("part_of_speech")
-                    s["definition"] = s.get("definition") or ''
-                    if s.get("definition") and type(s["definition"]) != list:
-                        s["definition"] = [s["definition"]]
-                        # senses += s
-                    else:
-                        senses.append(s)
+        ipas = parse_pronunciations(selected_results)
+        audios = parse_audios(selected_results)
+        senses = parse_senses(selected_results)
 
         return {"ipas": ipas, "audios": audios, "senses": senses}
 
@@ -128,27 +127,10 @@ def get_glosbe_data(word, from_, dest, pool, futures):
             if 'meanings' in item:
                 for meaning in item['meanings']:
                     definitions.append(meaning['text'])  # xxx: fragile
-        print(translations, definitions)
+        # print(translations, definitions)
         return {"translations":translations, "definitions": definitions}
 
     futures["glosbe"] = pool.submit(fut, (word))
-
-# def get_slovnik_data(word, pool, futures):
-#     url = "http://slovnik.cz/bin/mld.fpl?vcb={word}&trn=p%C5%99elo%C5%BEit&dictdir=encz.en&lines=100&js=0"
-    
-#     def fut(word):
-#         html_doc = requests.get(url.format(word=word)).text
-
-#         soup = BeautifulSoup(html_doc, 'html.parser')
-#         translations = []
-
-#         for pair in soup.find_all(class_="pair"):
-#             [s.extract() for s in pair('i')]
-#             l = pair.find(class_="l").text
-#             r = pair.find(class_="r").text
-#             translations.append((l, r))
-#         return translations
-#     futures["slovnik"] = pool.submit(fut, (word))
 
 
 def process_related(data):
@@ -168,6 +150,7 @@ def get_wordnik_data(word, pool, futures):
     def download_wordnik_data(params):
         name, url = params
         data = requests.get(wordnikApiUrl + url.format(word=word), params={"api_key": wordnikApiKey}).json()
+        # print("xxx", data)
         return process_data[name](data)
 
     urls = {
@@ -181,8 +164,6 @@ def get_wordnik_data(word, pool, futures):
 
 
     for name, url in urls.items():
-        # futures[name] = download_wordnik_data( (name, url))
-        # print(name, "is done")
         futures[name] = pool.submit(download_wordnik_data, (name, url))
 
 @app.route("/")
@@ -237,6 +218,13 @@ def process_data(data):
         deck.close()
         raise
 
+def highlight_sentence(sentence, word):
+    words = nltk.word_tokenize(sentence)
+    best_match, _ = process.extractOne(word, words)
+
+    return sentence.replace(best_match, "<em>{}</em>".format(best_match))
+
+
 @app.route("/word", methods=['GET', 'POST'])
 def word():
     if request.method == 'POST':
@@ -245,9 +233,10 @@ def word():
 
         return "OK :-)"
 
-    word = request.args.get('w')
+    word = request.args['w']
     # XXX: if word==None then we have trouble
     sentence = request.args.get('s')
+    sentence_hl = highlight_sentence(sentence, word)
 
     suggestions = None
     if not hobj.spell(word):
@@ -261,18 +250,24 @@ def word():
     # get_slovnik_data(word, pool, futures)
     get_glosbe_data(word, "eng", "ces", pool, futures)
     get_pearson_data(word, pool, futures)
-    time.sleep(15)
-    # todo: active waiting
+    
+    beginning = time.time()
 
+    not_finished = True
     results = {}
-    for name, future in futures.items():
-        if future.done():
-            results[name] = future.result()
-        else:
-            print (future, "is not done")
+    while time.time()-beginning < 15 and not_finished:
+        not_finished = False
+        for name, future in futures.items():
+            if future.done():
+                if name not in results:
+                    results[name] = future.result()
+            else:
+                not_finished = True
+                print (future, "is not done")
+        time.sleep(0.3)
 
     pearson = results.get("pearson") or {}
-    return render_template('word.html', word=word, sentence=sentence, results=results, pearson=pearson, suggestions=suggestions)
+    return render_template('word.html', word=word, sentence=sentence, sentence_hl=sentence_hl, results=results, pearson=pearson, suggestions=suggestions)
 
 app.secret_key = 'jdf5fgmb.45f§elpjh)2jk4545*/*/f8dh*/d.-,.'
 app.config['PERMANENT_SESSION_LIFETIME']=timedelta(days=365*10)

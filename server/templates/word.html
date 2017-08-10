@@ -9,7 +9,7 @@
 <form method="POST" action="">
 <input type="submit"></input><br>
 Word: <input type="text" name="w" value="{{word}}"/><br>
-Sentence: <input type="text" name="s" value="{{sentence}}"/><br>
+Sentence: {{sentence_hl|safe}}<input type="text" name="s" value="{{sentence|safe}}"/><br>
 
 {% if suggestions %}
     Did you mean: 
@@ -65,7 +65,7 @@ Definitions:
     <ul>
     {% for s in pearson.senses %} 
     {# todo: add register_label to the value#}
-        <li><label><input type="checkbox" name="definition" value="{{s.part_of_speech}}###!###{{s.definition[0]}}">{{word}} {% if s.part_of_speech or s.register_label %}({{s.part_of_speech}}{%if 'register_label' in s %} <em>{{s.register_label}}</em> {%endif%}){%endif%} {{s.definition[0]}}.</label></li>
+        <li><label><input type="checkbox" name="definition" value="{{s.part_of_speech}}###!###{{s.definition[0]}}">{{word}} {% if s.part_of_speech or s.register_label %}({{s.part_of_speech}}{%if 'register_label' in s %} <em>{{s.register_label}}</em>{%endif%}){%endif%} {{s.definition[0]}}.</label></li>
     {%endfor%}
     </ul>
 {% endif %}
@@ -243,9 +243,6 @@ Phrases:
         <li><label><input type="radio" name="image" value="{{image.thumbnailUrl}}"><img src="{{image.thumbnailUrl}}">
     {% endfor %}
 {%endif%}
-
-{%if 'examples' in results %}
-<ul>
 
 
 <input type="submit"></input>

@@ -1,1 +1,6 @@
 pyaudio
+fuzzywuzzy
+python-Levenshtein
+bs4
+send2trash
+httplib2

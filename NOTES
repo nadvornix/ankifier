@@ -1,89 +1,49 @@
 INSTALL:
 dependency: portaudio package in ubuntu
-- libhunspell-dev
+- sudo apt-get install libhunspell-dev
+- nltk.download('punkt')
+- python3.5
+conda install --file conda_requirements.txt; pip install -r pip_requirements.txt
 
 TODO:
-- neexistujici slova - exception
-- log exceptions
-- download wordnik audio files
-- jednoduší přehrávátka mp3
-
 - wordnik frequency is not working well
-- idea: use google n-gram
-- todo: also export it in some format that I will be able to process later. 
-    - eg: for pronuntiation cards, etc.
 
-- napsat wordnik ze jim chybi source in etymology in API
-- autor v examples
-- popis co znamená phrases
-- longman is giving base-form of word, -> including related words in pronountiation, etc. Eg: "appending"
-- vyfiltrovt/napsat příbuzný slova namísto přesného znění které zadám
-
-- opravit otravný ctrl+click v okamžicích kdy to nechci
-
-Etymology:
-- ani longman ani macmilian to nedávají
-
-
-
-Longman api:
-https://api.pearson.com/v2/dictionaries/ldoce5/entries?headword=test&apikey=CkUphfvJ1PSlGAinHU9BAy7jx1xHg6gt
-secret key: lOG9P62KN5ay8UCg
-
-
-
-possible source:
-https://words.bighugelabs.com/eloquence
-
-long term:
-- nice js loading
-- wysiwig editor
-
-words.txt -> chrome:
-cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
 
 NOTES:
 - bylo by fajn moci v tomto rozhraní i vyrobit úplně vlastní kartičky
-- je nepohodlné že musím scrollovat abych zmačkl "submit"
 - automatický preselect: "wiki" = ostatní uživatelé, pak british audio, first image...
-
+- words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
 
 TODO:
-- vymyslet deploy
-	- lepší (asynchroní v js) stahování dat
-	- make server parallel/asynchronous enough
-	- dělat něco s víceslovnýma spojeníma
-- zobrazit jenom ty části které většinou zaškrtnu, a ty ostatní jen mimochodem.
+- vzhled
+
 
 - z audia předvybrat tu která je nejpodobnější
 	(jednostraná L-distance?)
 
-- vzhled
 - udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
 
 - méně redundantní šablony (včetně odkazů na synonyma, atd.)
+	- zobrazit jenom ty části které většinou zaškrtnu, a ty ostatní jen mimochodem.
+
 - zvuk nefunguje v ankidroid.
 - dovymyslet: víceuživatelský systém
 
-- smazat kartu "prediction z anki :-)
-- udělat hezčí způsob jak udělat word.html
+- namísto odstranění významů, přidat odkazy na příbuzné významy/headwords
+- sentence:
+	- buď spravit sentence v chrome, nebo odstranit políčko.
+	- udělat políčko.
+- vědět jak moc časté dané slovo je.
+- exampels are not working (ale wordnik je nedává, asi maj chybu)
 
-- cvičit rozdíly ve významech slov
-- idea: namísto odstranění významů, přidat odkazy na příbuzné významy/headwords
-- word?w=%20s=, w=, just word?...
-- buď spravit sentence v chrome, nebo odstranit políčko.
-- refactor imports
-- throw away unused api calls
+- jiný program má funkci že když do text-inpu zadám synonymum k tomu co jsem měl, tak mi řekne že je to synonymum.
+	-> můžeme používat wordnet k tomu abychom explicitně věděli že studujeme angličtinu.
+	- nikoli obecné SRS, jako anki.
 
-DONE:
-- audioplayer
-- key shortcut for submission - just enter :-)
-- možnost změnit slovo a znovunačíst stránku - just change url. 
-- ošetřit None v slovním druhu u definic (vyskytuje se u vlastních jmen)
-- lepší ipas
-- extrahovat co je v audiu a napsat to vedle něj a vybrat podle toho nejbližší match.
-- mít odkaz u synonym a dalších slov na přidání i toho slova. Bude dokončeno po udělání lepšího způsobu generování šablony.
-- "old-fashioned consumption (noun) someone.." -> "consumption (noun, old-fashioned) someone..."
+- anki zobrazuje občas jednu kartičku opakovaně - když je jediná neudělaná v balíčku
+	- přidat nějaké kartičky z budoucnosti/odjinut
+
+- přidat informace o tom jak je slovo časté (resp. jestli je britské/americké. Formální/vulgární/...)
 
 
 Less important:
@@ -101,7 +61,6 @@ LATER:
 NOTES:
 - Nesmíme moc zadávat víceslovní spojení.
 
---
 
 Errors: inveighing, encroache
 
@@ -111,6 +70,7 @@ DOBRÉ WEBY:
 	- resp. lexvo.org - dají se vytahat i překlady a pod. Resp. různé rozšíření wordnetu
 - https://glosbe.com/en/cs/prediction
 	- větší fráze vč. překladu
+- https://words.bighugelabs.com/eloquence
 
 TO CHECK:
 - jestli se v anki zobrazují správně všechna políčka
@@ -129,7 +89,8 @@ Before public launch:
 - ask for higher API quotas.
 - make it less fragile
 
-GLOSBE:
-spanish, russian, portuguese, french, german, polish, czech, italian
-spa, rus, por, fra, deu, pol, ces, ita
-..proč raději nepřidat všechny?
+IDEAS:
+- když mám zadat cat a zadám dog (existující kartička), tak mně to upozorní na to že je to už existující kartička
+
+AUTH:
+- do not store their media, only mine.

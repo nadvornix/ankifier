@@ -1,0 +1,12 @@
+lxml
+requests
+ipython
+beautifulsoup4
+Flask
+nltk
+notebook
+sip
+requests
+decorator
+pyqt==4.11.4
+pyqt==5.6.0
