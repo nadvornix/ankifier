@@ -99,7 +99,7 @@ Examples:
  Translations:
  <ul>
  {% for translation in results.glosbe.translations %}
-    <label><input type="checkbox" name="glosbe" value="{{translation}}">{{translation}}</label><br>
+    <label><input type="checkbox" name="glosbe" value="{{translation}}" checked>{{translation}}</label><br>
  {% endfor %}
  </ul>
 {% endif%}
@@ -108,14 +108,14 @@ Examples:
 {%if 'equivalent' in results.relatedWords%}
 <strong>Equivalent</strong>: 
     {%for w in results.relatedWords.equivalent %}
-        <label><input type="checkbox" name="equivalent" value="{{w}}">{{w}}</label>, 
+        <label><input type="checkbox" name="equivalent" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'synonym' in results.relatedWords%}
 <strong>Synonym</strong>: 
     {%for w in results.relatedWords.synonym %}
-        <label><input type="checkbox" name="synonym" value="{{w}}"><a href="/word?w={{w}}">{{w}}</a></label>, 
+        <label><input type="checkbox" name="synonym" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
@@ -164,7 +164,7 @@ Examples:
 {%if 'antonym' in results["relatedWords"]%}
 <strong>Antonyms</strong>: 
     {%for w in results.relatedWords["antonym"] %}
-        <label><input type="checkbox" name="antonym" value="{{w}}">{{w}}</label>, 
+        <label><input type="checkbox" name="antonym" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
@@ -192,7 +192,7 @@ Examples:
 {%if 'hyponym' in results["relatedWords"]%}
 <strong>Hyponym</strong>: 
     {%for w in results.relatedWords["hyponym"] %}
-        <label><input type="checkbox" name="hyponym" value="{{w}}">{{w}}</label>, 
+        <label><input type="checkbox" name="hyponym" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
@@ -238,9 +238,9 @@ Phrases:
 
 {# {{results.images}} #}
 
-{% if results.images['value'] %}
-    {% for image in results.images['value'] %}
-        <li><label><input type="radio" name="image" value="{{image.thumbnailUrl}}"><img src="{{image.thumbnailUrl}}">
+{% if results.images %}
+    {% for image in results.images.images %}
+    <li><label><input type="radio" name="image" value="{{image.link}}"><img src="{{image.link}}" width=330>
     {% endfor %}
 {%endif%}
 

@@ -8,18 +8,65 @@ conda install --file conda_requirements.txt; pip install -r pip_requirements.txt
 TODO:
 - wordnik frequency is not working well
 
-
 NOTES:
 - bylo by fajn moci v tomto rozhraní i vyrobit úplně vlastní kartičky
 - automatický preselect: "wiki" = ostatní uživatelé, pak british audio, first image...
 - words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
+- dát klíče z public repka (obzvláště placený google)
+- dát překlad nahoru - aby byl vidět na první obrazovce.
+- možnost je stahovat obrázky i z flickeru a dát na výběr oboje.
+- prý je dobrý websterův slovník (1913 je ke stežení), nebo je na dict.org které má api.
+ukázání jak běžné dané slovo je. A jestli je více mluvené/psané/historické/...
+dát audio hned za IPA (ted je až dole)
+kolem ipa jsou občas mezery nebo dvoje závorky
+tlačítko "zaškrtnout/odškrtnout vše" - min. k překladům.
+až budu dělat konkurenci anki, tak mohu řadit kartičky nejen podle anki-algoritmu, ale i podle četnosti slovíčka. (tj. častá slovíčka budou mít přednost)
+udělat unique na IPA - občas se tam opakují.
+ipa a audio může být radio button.(asi)
+odstranit slovo samotné z synonym, variant
+udělat to i pro češtinu - s hledáním v ujč slovníkách
+mít tlačítko "submit" vždy přítomné
+pearson má u ipa britskou i americkou angličtinu. šla by udělat app která by trénovala lidi v rozdílech.
+používám jako zdroj knihy co čtu. Ale možná by bylo lepší mít frequency-wordlist. 
+odkaz na licenci u wikitionary je zbytečný.
+dobré by bylo si ukládat všechna data v strojové podobě (Třeba do html komentáře v anki), tak abych kartičky mohl následně editovat uvnitř ankifieru.
+možnost si tam dopsat něco ručně.
+mohu vykrást ten anki plugin co umí předčítat (příp. podobné)
+dát překládané slovíčko do title
+připisovat slovíčko do seznamu "words" .. kt. bude sloužit jako dobrá záloha.
+případně i zapisovat jak bylo slovíčko nastaveno při posledním submitu - takže bude jednodušší přegenerovat všechny kartičky když přidám novou feature.
+otázka: co dělat když najdu slovo v nové frázi: eg "roundly abused" které nerozumí
+http://localhost:5000/word?w=pill
+
+
+Stránky se slovíčky:
+wordpandit.com
+https://twitter.com/vocabmadeeasy
+(dají se zjistit tak že vezmu zdroje obrázků které používám a kouknu se na často se opakující domény (ale to pokazí cloudfront))
+http://shareworthy.com/wordstoknow
+http://wordinfo.info/words (http://wordinfo.info/words/images/)
+http://static.sfdict.com/static/wotd/tiles/20151230_probity.png
+http://flashcardmonkey.com/wp-content/uploads/2015/11/mendacious.png
+https://78.media.tumblr.com/tumblr_mb7150BgxR1qevymb.png
+https://i.ytimg.com/vi/7kcmRhsAd1A/maxresdefault.jpg
+https://triangulations.files.wordpress.com/2011/10/making_an_unbridled_ass.png
+http://dkru86weszx9t.cloudfront.net/blog/wp-content/uploads/2016/09/PERUSE.gif
+http://izquotes.com/quotes-pictures/quote-if-you-have-an-enemy-do-not-requite-him-evil-with-good-for-that-would-put-him-to-shame-rather-friedrich-nietzsche-314731.jpgý
+http://dailyvocab.com/wp-content/uploads/2014/07/Requite.jpg
+http://www.azquotes.com/picture-quotes/quote-truth-is-generally-the-best-vindication-against-slander-abraham-lincoln-38-49-71.jpg
+http://images.digopaul.com/wp-content/uploads/related_images/2015/09/08/disabuse_2.jpg
+http://www.lear200.com/sites/lear200.com/files/t_2.png
 
 TODO:
+- nefungují příkladové věty.
 - vzhled
 
-
+- dát odkazy aby slovo bylo na konci
 - z audia předvybrat tu která je nejpodobnější
 	(jednostraná L-distance?)
+
+- zvýrazňovat použité slovo i v stažených příkladech
+- ukládat obrázky v rozumném rozlišení - teď se občas stahují velmi dlouho.
 
 - udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
 
@@ -44,6 +91,8 @@ TODO:
 	- přidat nějaké kartičky z budoucnosti/odjinut
 
 - přidat informace o tom jak je slovo časté (resp. jestli je britské/americké. Formální/vulgární/...)
+- tag created cards
+- do ankifieru: if not hunspell_GB.check or not hunspell_US.check...
 
 
 Less important:
@@ -77,7 +126,7 @@ TO CHECK:
 
 Heuristiky:
 - dolní skupina IPAs
-- nejspodnější audio z první skupiny
+- první audio z první skupiny, co je british english (to je to s nepřesnějším matchem)
 
 Before public launch:
 - log exceptions & put there logging

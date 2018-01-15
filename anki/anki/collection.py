@@ -14,7 +14,7 @@ import traceback
 
 from anki.lang import _, ngettext
 from anki.utils import ids2str, fieldChecksum, stripHTML, \
-    intTime, splitFields, joinFields, maxID, json
+    intTime, splitFields, joinFields, maxID, json, devMode
 from anki.hooks import  runFilter, runHook
 from anki.sched import Scheduler
 from anki.models import ModelManager
@@ -49,7 +49,7 @@ defaultConf = {
 }
 
 # this is initialized by storage.Collection
-class _Collection(object):
+class _Collection:
 
     def __init__(self, db, server=False, log=False):
         self._debugLog = log
@@ -134,9 +134,10 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
         self._lastSave = time.time()
 
     def autosave(self):
-        "Save if 5 minutes has passed since last save."
+        "Save if 5 minutes has passed since last save. True if saved."
         if time.time() - self._lastSave > 300:
             self.save()
+            return True
 
     def lock(self):
         # make sure we don't accidentally bump mod time
@@ -150,9 +151,11 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
             if save:
                 self.save()
             else:
-                self.rollback()
+                self.db.rollback()
             if not self.server:
+                self.db.setAutocommit(True)
                 self.db.execute("pragma journal_mode = delete")
+                self.db.setAutocommit(False)
             self.db.close()
             self.db = None
             self.media.close()
@@ -200,6 +203,7 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
         self.modSchema(check=False)
         self.ls = self.scm
         # ensure db is compacted before upload
+        self.db.setAutocommit(True)
         self.db.execute("vacuum")
         self.db.execute("analyze")
         self.close()
@@ -304,12 +308,15 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
         snids = ids2str(nids)
         have = {}
         dids = {}
-        for id, nid, ord, did in self.db.execute(
-            "select id, nid, ord, did from cards where nid in "+snids):
+        for id, nid, ord, did, odid in self.db.execute(
+            "select id, nid, ord, did, odid from cards where nid in "+snids):
             # existing cards
             if nid not in have:
                 have[nid] = {}
             have[nid][ord] = id
+            # if in a filtered deck, add new cards to original deck
+            if odid != 0:
+                did = odid
             # and their dids
             if nid in dids:
                 if dids[nid] and dids[nid] != did:
@@ -348,7 +355,7 @@ crt=?, mod=?, scm=?, dty=?, usn=?, ls=?, conf=?""",
                     ts += 1
             # note any cards that need removing
             if nid in have:
-                for ord, id in have[nid].items():
+                for ord, id in list(have[nid].items()):
                     if ord not in avail:
                         rem.append(id)
         # bulk update
@@ -380,7 +387,7 @@ insert into cards values (?,?,?,?,?,?,0,0,?,0,0,0,0,0,0,0,0,"")""",
         card.nid = note.id
         card.ord = template['ord']
         # Use template did (deck override) if valid, otherwise model did
-        if template['did'] and unicode(template['did']) in self.decks.decks:
+        if template['did'] and str(template['did']) in self.decks.decks:
             card.did = template['did']
         else:
             card.did = note.model()['did']
@@ -497,7 +504,7 @@ where c.nid = n.id and c.id in %s group by nid""" % ids2str(cids)):
         flist = splitFields(data[6])
         fields = {}
         model = self.models.get(data[2])
-        for (name, (idx, conf)) in self.models.fieldMap(model).items():
+        for (name, (idx, conf)) in list(self.models.fieldMap(model).items()):
             fields[name] = flist[idx]
         fields['Tags'] = data[5].strip()
         fields['Type'] = model['name']
@@ -787,12 +794,12 @@ and queue = 0""", intTime(), self.usn())
             "select max(due)+1 from cards where type = 0") or 0
         # reviews should have a reasonable due #
         ids = self.db.list(
-            "select id from cards where queue = 2 and due > 10000")
+            "select id from cards where queue = 2 and due > 100000")
         if ids:
             problems.append("Reviews had incorrect due date.")
             self.db.execute(
-                "update cards set due = 0, mod = ?, usn = ? where id in %s"
-                % ids2str(ids), intTime(), self.usn())
+                "update cards set due = ?, ivl = 1, mod = ?, usn = ? where id in %s"
+                % ids2str(ids), self.sched.today, intTime(), self.usn())
         # and finally, optimize
         self.optimize()
         newSize = os.stat(self.path)[stat.ST_SIZE]
@@ -806,8 +813,10 @@ and queue = 0""", intTime(), self.usn())
         return ("\n".join(problems), ok)
 
     def optimize(self):
+        self.db.setAutocommit(True)
         self.db.execute("vacuum")
         self.db.execute("analyze")
+        self.db.setAutocommit(False)
         self.lock()
 
     # Logging
@@ -817,27 +826,38 @@ and queue = 0""", intTime(), self.usn())
         if not self._debugLog:
             return
         def customRepr(x):
-            if isinstance(x, basestring):
+            if isinstance(x, str):
                 return x
             return pprint.pformat(x)
         path, num, fn, y = traceback.extract_stack(
             limit=2+kwargs.get("stack", 0))[0]
-        buf = u"[%s] %s:%s(): %s" % (intTime(), os.path.basename(path), fn,
+        buf = "[%s] %s:%s(): %s" % (intTime(), os.path.basename(path), fn,
                                      ", ".join([customRepr(x) for x in args]))
-        self._logHnd.write(buf.encode("utf8") + "\n")
-        if os.environ.get("ANKIDEV"):
-            print buf
+        self._logHnd.write(buf + "\n")
+        if devMode:
+            print(buf)
 
     def _openLog(self):
         if not self._debugLog:
             return
-        lpath = re.sub("\.anki2$", ".log", self.path)
+        lpath = re.sub(r"\.anki2$", ".log", self.path)
         if os.path.exists(lpath) and os.path.getsize(lpath) > 10*1024*1024:
             lpath2 = lpath + ".old"
             if os.path.exists(lpath2):
                 os.unlink(lpath2)
             os.rename(lpath, lpath2)
-        self._logHnd = open(lpath, "ab")
+        self._logHnd = open(lpath, "a", encoding="utf8")
 
     def _closeLog(self):
+        if not self._debugLog:
+            return
+        self._logHnd.close()
         self._logHnd = None
+
+    # Card Flags
+    ##########################################################################
+
+    def setUserFlag(self, flag, cids):
+        assert 0 <= flag <= 7
+        self.db.execute("update cards set flags = (flags & ~?) | ? where id in %s" %
+                        ids2str(cids), 0b111, flag)

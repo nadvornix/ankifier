@@ -1,0 +1,7 @@
+bs4
+send2trash
+httplib2
+pyaudio
+requests
+decorator
+markdown

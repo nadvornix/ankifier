@@ -19,7 +19,6 @@ class Anki2Importer(Importer):
     needMapper = False
     deckPrefix = None
     allowUpdate = True
-    dupeOnSchemaChange = False
 
     def run(self, media=None):
         self._prepareFiles()
@@ -46,8 +45,10 @@ class Anki2Importer(Importer):
         self._importCards()
         self._importStaticMedia()
         self._postImport()
+        self.dst.db.setAutocommit(True)
         self.dst.db.execute("vacuum")
         self.dst.db.execute("analyze")
+        self.dst.db.setAutocommit(False)
 
     # Notes
     ######################################################################
@@ -63,9 +64,8 @@ class Anki2Importer(Importer):
         # we may need to rewrite the guid if the model schemas don't match,
         # so we need to keep track of the changes for the card import stage
         self._changedGuids = {}
-        # apart from upgrading from anki1 decks, we ignore updates to changed
-        # schemas. we need to note the ignored guids, so we avoid importing
-        # invalid cards
+        # we ignore updates to changed schemas. we need to note the ignored
+        # guids, so we avoid importing invalid cards
         self._ignoredGuids = {}
         # iterate over source collection
         add = []
@@ -147,19 +147,9 @@ class Anki2Importer(Importer):
         note[MID] = dstMid
         if origGuid not in self._notes:
             return True
-        # as the schemas differ and we already have a note with a different
-        # note type, this note needs a new guid
-        if not self.dupeOnSchemaChange:
-            return False
-        while True:
-            note[GUID] = incGuid(note[GUID])
-            self._changedGuids[origGuid] = note[GUID]
-            # if we don't have an existing guid, we can add
-            if note[GUID] not in self._notes:
-                return True
-            # if the existing guid shares the same mid, we can reuse
-            if dstMid == self._notes[note[GUID]][MID]:
-                return False
+        # schema changed; don't import
+        self._ignoredGuids[origGuid] = True
+        return False
 
     # Models
     ######################################################################
@@ -186,7 +176,6 @@ class Anki2Importer(Importer):
                 # copy it over
                 model = srcModel.copy()
                 model['id'] = mid
-                model['mod'] = intTime()
                 model['usn'] = self.col.usn()
                 self.dst.models.update(model)
                 break
@@ -194,12 +183,12 @@ class Anki2Importer(Importer):
             dstModel = self.dst.models.get(mid)
             dstScm = self.dst.models.scmhash(dstModel)
             if srcScm == dstScm:
-                # they do; we can reuse this mid
-                model = srcModel.copy()
-                model['id'] = mid
-                model['mod'] = intTime()
-                model['usn'] = self.col.usn()
-                self.dst.models.update(model)
+                # copy styling changes over if newer
+                if srcModel['mod'] > dstModel['mod']:
+                    model = srcModel.copy()
+                    model['id'] = mid
+                    model['usn'] = self.col.usn()
+                    self.dst.models.update(model)
                 break
             # as they don't match, try next id
             mid += 1
@@ -351,7 +340,8 @@ insert or ignore into revlog values (?,?,?,?,?,?,?,?,?)""", revlog)
             dir = self.src.media.dir()
         path = os.path.join(dir, fname)
         try:
-            return open(path, "rb").read()
+            with open(path, "rb") as f:
+                return f.read()
         except (IOError, OSError):
             return
 
@@ -367,7 +357,8 @@ insert or ignore into revlog values (?,?,?,?,?,?,?,?,?)""", revlog)
         path = os.path.join(self.dst.media.dir(),
                             unicodedata.normalize("NFC", fname))
         try:
-            open(path, "wb").write(data)
+            with open(path, "wb") as f:
+                f.write(data)
         except (OSError, IOError):
             # the user likely used subdirectories
             pass
@@ -403,7 +394,7 @@ insert or ignore into revlog values (?,?,?,?,?,?,?,?,?)""", revlog)
     ######################################################################
 
     def _postImport(self):
-        for did in self._decks.values():
+        for did in list(self._decks.values()):
             self.col.sched.maybeRandomizeDeck(did)
         # make sure new position is correct
         self.dst.conf['nextPos'] = self.dst.db.scalar(

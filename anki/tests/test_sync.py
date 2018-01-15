@@ -5,7 +5,9 @@ import nose, os, shutil, time
 from anki import Collection as aopen, Collection
 from anki.utils import intTime
 from anki.sync import Syncer, LocalServer
+from anki.consts import STARTING_FACTOR
 from tests.shared import getEmptyCol, getEmptyDeckWith
+import anki.stdmodels
 
 # Local tests
 ##########################################################################
@@ -21,14 +23,14 @@ def setup_basic():
     deck1 = getEmptyCol()
     # add a note to deck 1
     f = deck1.newNote()
-    f['Front'] = u"foo"; f['Back'] = u"bar"; f.tags = [u"foo"]
+    f['Front'] = "foo"; f['Back'] = "bar"; f.tags = ["foo"]
     deck1.addNote(f)
     # answer it
     deck1.reset(); deck1.sched.answerCard(deck1.sched.getCard(), 4)
     # repeat for deck2
     deck2 = getEmptyDeckWith(server=True)
     f = deck2.newNote()
-    f['Front'] = u"bar"; f['Back'] = u"bar"; f.tags = [u"bar"]
+    f['Front'] = "bar"; f['Back'] = "bar"; f.tags = ["bar"]
     deck2.addNote(f)
     deck2.reset(); deck2.sched.answerCard(deck2.sched.getCard(), 4)
     # start with same schema and sync time
@@ -62,7 +64,7 @@ def test_sync():
         for d in deck1, deck2:
             for t in ("revlog", "notes", "cards"):
                 assert d.db.scalar("select count() from %s" % t) == num
-            assert len(d.models.all()) == num*4
+            assert len(d.models.all()) == num*len(anki.stdmodels.models)
             # the default deck and config have an id of 1, so always 1
             assert len(d.decks.all()) == 1
             assert len(d.decks.dconf) == 1
@@ -166,15 +168,17 @@ def test_cards():
 @nose.with_setup(setup_modified)
 def test_tags():
     test_sync()
-    assert deck1.tags.all() == deck2.tags.all()
+    def sortedTags(deck):
+        return sorted(deck.tags.all())
+    assert sortedTags(deck1) == sortedTags(deck2)
     deck1.tags.register(["abc"])
     deck2.tags.register(["xyz"])
-    assert deck1.tags.all() != deck2.tags.all()
+    assert sortedTags(deck1) != sortedTags(deck2)
     deck1.save()
     time.sleep(0.1)
     deck2.save()
     assert client.sync() == "success"
-    assert deck1.tags.all() == deck2.tags.all()
+    assert sortedTags(deck1) == sortedTags(deck2)
 
 @nose.with_setup(setup_modified)
 def test_decks():
@@ -189,7 +193,7 @@ def test_decks():
     time.sleep(0.1)
     deck2.save()
     assert client.sync() == "success"
-    assert deck1.tags.all() == deck2.tags.all()
+    assert sorted(deck1.tags.all()) == sorted(deck2.tags.all())
     assert len(deck1.decks.all()) == len(deck2.decks.all())
     assert len(deck1.decks.all()) == 3
     assert deck1.decks.confForDid(1)['maxTaken'] == 60
@@ -223,7 +227,7 @@ def test_threeway():
     # client 1 adds a card at time 1
     time.sleep(1)
     f = deck1.newNote()
-    f['Front'] = u"1";
+    f['Front'] = "1";
     deck1.addNote(f)
     deck1.save()
     # at time 2, client 2 syncs to server
@@ -249,7 +253,7 @@ def test_threeway2():
         # create collection 1 with a single note
         c1 = getEmptyCol()
         f = c1.newNote()
-        f['Front'] = u"startingpoint"
+        f['Front'] = "startingpoint"
         nid = f.id
         c1.addNote(f)
         cid = f.cards()[0].id
@@ -329,9 +333,9 @@ def _test_speed():
     deck1.scm = deck2.scm = 0
     server = LocalServer(deck2)
     client = Syncer(deck1, server)
-    print "load %d" % ((time.time() - t)*1000); t = time.time()
+    print("load %d" % ((time.time() - t)*1000)); t = time.time()
     assert client.sync() == "success"
-    print "sync %d" % ((time.time() - t)*1000); t = time.time()
+    print("sync %d" % ((time.time() - t)*1000)); t = time.time()
 
 @nose.with_setup(setup_modified)
 def test_filtered_delete():
@@ -341,7 +345,7 @@ def test_filtered_delete():
     card = note.cards()[0]
     card.type = 2
     card.ivl = 10
-    card.factor = 2500
+    card.factor = STARTING_FACTOR
     card.due = deck1.sched.today
     card.flush()
     # put cards into a filtered deck

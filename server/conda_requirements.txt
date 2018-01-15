@@ -1,3 +1,4 @@
+IPython
 lxml
 requests
 ipython
@@ -8,5 +9,5 @@ notebook
 sip
 requests
 decorator
-pyqt==4.11.4
-pyqt==5.6.0
+#pyqt==4.11.4
+#pyqt==5.6.0

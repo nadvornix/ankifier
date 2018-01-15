@@ -1,6 +1,8 @@
+google-api-python-client
 pyaudio
 fuzzywuzzy
 python-Levenshtein
 bs4
 send2trash
 httplib2
+hunspell

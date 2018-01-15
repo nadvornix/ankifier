@@ -10,6 +10,7 @@ import http.client, urllib.request, urllib.parse, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
+from apiclient.discovery import build
 from bs4 import BeautifulSoup
 import hunspell
 import requests
@@ -28,31 +29,47 @@ hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic', '../spellcheck_dicts/e
 def make_session_permanent():
     session.permanent = True
 
+
+# def get_images_data(word, pool, futures):
+#     def fut(word):
+
+#         headers = {
+#             # Request headers
+#             'Content-Type': 'multipart/form-data',
+#             'Ocp-Apim-Subscription-Key': '856f37af4bcc4298934e0e52c2b6c970',
+#         }
+
+#         params = urllib.parse.urlencode({
+#             "q": word
+#         })
+
+#         try:
+#             conn = http.client.HTTPSConnection('api.cognitive.microsoft.com')
+#             conn.request("POST", "/bing/v5.0/images/search?%s" % params, "{body}", headers)
+#             response = conn.getresponse()
+#             data = response.read()
+#             conn.close()
+#             data_json = json.loads(data.decode("utf8"))
+#             return data_json
+#         except Exception as e:
+#             print("[Errno {0}] {1}".format(e.errno, e.strerror))
+#             return {"images": None}
+
+#     futures["images"] = pool.submit(fut, (word))
+
 def get_images_data(word, pool, futures):
-
+    service = build("customsearch", "v1", developerKey="AIzaSyCggWpdxOy0S-VGD7prKCezMNDTKdUVaZ4")
     def fut(word):
-
-        headers = {
-            # Request headers
-            'Content-Type': 'multipart/form-data',
-            'Ocp-Apim-Subscription-Key': '856f37af4bcc4298934e0e52c2b6c970',
-        }
-
-        params = urllib.parse.urlencode({
-            "q": word
-        })
-
-        try:
-            conn = http.client.HTTPSConnection('api.cognitive.microsoft.com')
-            conn.request("POST", "/bing/v5.0/images/search?%s" % params, "{body}", headers)
-            response = conn.getresponse()
-            data = response.read()
-            conn.close()
-            data_json = json.loads(data.decode("utf8"))
-            return data_json
-        except Exception as e:
-            print("[Errno {0}] {1}".format(e.errno, e.strerror))
-            return {"images": None}
+        res = service.cse().list(
+            q=word,
+            cx='016358747817454183055:uquqshwztai',
+            searchType='image',
+            num=10,
+            #imgType='clipart',
+            #fileType='png',
+            safe= 'off'
+        ).execute()
+        return {"images": res["items"]}
 
     futures["images"] = pool.submit(fut, (word))
 
@@ -81,6 +98,8 @@ def parse_audios(results):
 
 def parse_senses(results):
     senses = []
+    exs = []
+
     for r in results:
         if r.get("senses"):
             for s in r["senses"]:
@@ -90,7 +109,13 @@ def parse_senses(results):
                     s["definition"] = [s["definition"]]
                 else:
                     senses.append(s)
-    return senses
+
+                examples = s.get("examples") or []
+                for example in examples:
+                    # print("type(pearson.example)==",type(example))
+                    if example and example.get("text"):
+                        exs.append(example["text"])
+    return senses, exs
 
 def get_pearson_data(word, pool, futures):
     url = "http://api.pearson.com/v2/dictionaries/entries?headword={word}&limit=100"
@@ -101,15 +126,16 @@ def get_pearson_data(word, pool, futures):
         if not data_json:
             return None
         data = json.loads(data_json)
+        # pprint (data)
         results = data.get("results") or []
         selected_dicts = ["ldoce5", "lasde", "wordwise", "laad3"]
         selected_results = [r for r in results if (set(r["datasets"]) & set(selected_dicts))]
         
         ipas = parse_pronunciations(selected_results)
         audios = parse_audios(selected_results)
-        senses = parse_senses(selected_results)
+        senses, examples = parse_senses(selected_results)
 
-        return {"ipas": ipas, "audios": audios, "senses": senses}
+        return {"ipas": ipas, "audios": audios, "senses": senses, "examples": examples}
 
     futures["pearson"] = pool.submit(fut, (word))
 
@@ -205,7 +231,7 @@ def process_data(data):
 
         fact['Back'] = render_template('anki_card.html', data=data, 
             # slovnik=[" - ".join(item.split("###!###")) for item in (data.get("slovnik") or [])],
-            glosbe=[" - ".join(data.get("glosbe") or [])],
+            glosbe=data.get("glosbe") or [],
             definitions=["<em>({0})</em> {1}".format(*item.split("###!###")) for item in (data.get("definition") or [])],
             img_filename=img_filename,
             audio_filename=audio_filename

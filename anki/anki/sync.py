@@ -2,97 +2,27 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-import urllib
-import sys
+import io
 import gzip
 import random
-from cStringIO import StringIO
+import requests
 
-import httplib2
-from anki.db import DB
-from anki.utils import ids2str, intTime, json, isWin, isMac, platDesc, checksum
+from anki.db import DB, DBError
+from anki.utils import ids2str, intTime, json, platDesc, checksum, devMode
 from anki.consts import *
-from hooks import runHook
+from .hooks import runHook
 import anki
-from lang import ngettext
+from .lang import ngettext
 
 # syncing vars
 HTTP_TIMEOUT = 90
 HTTP_PROXY = None
-
-# badly named; means no retries
-httplib2.RETRIES = 1
-
-try:
-    # httplib2 >=0.7.7
-    _proxy_info_from_environment = httplib2.proxy_info_from_environment
-    _proxy_info_from_url = httplib2.proxy_info_from_url
-except AttributeError:
-    # httplib2 <0.7.7
-    _proxy_info_from_environment = httplib2.ProxyInfo.from_environment
-    _proxy_info_from_url = httplib2.ProxyInfo.from_url
-
-# Httplib2 connection object
-######################################################################
-
-def httpCon():
-    certs = os.path.join(os.path.dirname(__file__), "ankiweb.certs")
-    if not os.path.exists(certs):
-        if isWin:
-            certs = os.path.join(
-                os.path.dirname(os.path.abspath(sys.argv[0])),
-                "ankiweb.certs")
-        elif isMac:
-            certs = os.path.join(
-                os.path.dirname(os.path.abspath(sys.argv[0])),
-                "../Resources/ankiweb.certs")
-        else:
-            assert 0, "Your distro has not packaged Anki correctly."
-    return httplib2.Http(
-        timeout=HTTP_TIMEOUT, ca_certs=certs,
-        proxy_info=HTTP_PROXY,
-        disable_ssl_certificate_validation=not not HTTP_PROXY)
-
-# Proxy handling
-######################################################################
-
-def _setupProxy():
-    global HTTP_PROXY
-    # set in env?
-    p = _proxy_info_from_environment()
-    if not p:
-        # platform-specific fetch
-        url = None
-        if isWin:
-            r = urllib.getproxies_registry()
-            if 'https' in r:
-                url = r['https']
-            elif 'http' in r:
-                url = r['http']
-        elif isMac:
-            r = urllib.getproxies_macosx_sysconf()
-            if 'https' in r:
-                url = r['https']
-            elif 'http' in r:
-                url = r['http']
-        if url:
-            p = _proxy_info_from_url(url, _proxyMethod(url))
-    if p:
-        p.proxy_rdns = True
-    HTTP_PROXY = p
-
-def _proxyMethod(url):
-    if url.lower().startswith("https"):
-        return "https"
-    else:
-        return "http"
-
-_setupProxy()
+HTTP_BUF_SIZE = 64*1024
 
 # Incremental syncing
 ##########################################################################
 
-class Syncer(object):
+class Syncer:
 
     def __init__(self, col, server=None):
         self.col = col
@@ -524,25 +454,62 @@ class LocalServer(Syncer):
         l = json.loads; d = json.dumps
         return l(d(Syncer.applyChanges(self, l(d(changes)))))
 
+# Wrapper for requests that tracks upload/download progress
+##########################################################################
+
+class AnkiRequestsClient:
+
+    verify = True
+
+    def __init__(self):
+        self.session = requests.Session()
+
+    def post(self, url, data, headers):
+        data = _MonitoringFile(data)
+        headers['User-Agent'] = self._agentName()
+        return self.session.post(
+            url, data=data, headers=headers, stream=True, timeout=60, verify=self.verify)
+
+    def get(self, url, headers=None):
+        if headers is None:
+            headers = {}
+        headers['User-Agent'] = self._agentName()
+        return self.session.get(url, stream=True, timeout=60, verify=self.verify)
+
+    def streamContent(self, resp):
+        resp.raise_for_status()
+
+        buf = io.BytesIO()
+        for chunk in resp.iter_content(chunk_size=HTTP_BUF_SIZE):
+            runHook("httpRecv", len(chunk))
+            buf.write(chunk)
+        return buf.getvalue()
+
+    def _agentName(self):
+        from anki import version
+        return "Anki {}".format(version)
+
+class _MonitoringFile(io.BufferedReader):
+    def read(self, size=-1):
+        data = io.BufferedReader.read(self, HTTP_BUF_SIZE)
+        runHook("httpSend", len(data))
+        return data
+
 # HTTP syncing tools
 ##########################################################################
 
-# Calling code should catch the following codes:
-# - 501: client needs upgrade
-# - 502: ankiweb down
-# - 503/504: server too busy
+class HttpSyncer:
 
-class HttpSyncer(object):
-
-    def __init__(self, hkey=None, con=None):
+    def __init__(self, hkey=None, client=None):
         self.hkey = hkey
         self.skey = checksum(str(random.random()))[:8]
-        self.con = con or httpCon()
+        self.client = client or AnkiRequestsClient()
         self.postVars = {}
 
     def assertOk(self, resp):
-        if resp['status'] != '200':
-            raise Exception("Unknown response code: %s" % resp['status'])
+        # not using raise_for_status() as aqt expects this error msg
+        if resp.status_code != 200:
+            raise Exception("Unknown response code: %s" % resp.status_code)
 
     # Posting data as a file
     ######################################################################
@@ -550,22 +517,22 @@ class HttpSyncer(object):
     # costly. We could send it as a raw post, but more HTTP clients seem to
     # support file uploading, so this is the more compatible choice.
 
-    def req(self, method, fobj=None, comp=6, badAuthRaises=False):
-        BOUNDARY="Anki-sync-boundary"
-        bdry = "--"+BOUNDARY
-        buf = StringIO()
+    def _buildPostData(self, fobj, comp):
+        BOUNDARY=b"Anki-sync-boundary"
+        bdry = b"--"+BOUNDARY
+        buf = io.BytesIO()
         # post vars
         self.postVars['c'] = 1 if comp else 0
-        for (key, value) in self.postVars.items():
-            buf.write(bdry + "\r\n")
+        for (key, value) in list(self.postVars.items()):
+            buf.write(bdry + b"\r\n")
             buf.write(
-                'Content-Disposition: form-data; name="%s"\r\n\r\n%s\r\n' %
-                (key, value))
+                ('Content-Disposition: form-data; name="%s"\r\n\r\n%s\r\n' %
+                (key, value)).encode("utf8"))
         # payload as raw data or json
         if fobj:
             # header
-            buf.write(bdry + "\r\n")
-            buf.write("""\
+            buf.write(bdry + b"\r\n")
+            buf.write(b"""\
 Content-Disposition: form-data; name="data"; filename="data"\r\n\
 Content-Type: application/octet-stream\r\n\r\n""")
             # write file into buffer, optionally compressing
@@ -580,23 +547,27 @@ Content-Type: application/octet-stream\r\n\r\n""")
                         tgt.close()
                     break
                 tgt.write(data)
-            buf.write('\r\n' + bdry + '--\r\n')
+            buf.write(b"\r\n")
+        buf.write(bdry + b'--\r\n')
         size = buf.tell()
         # connection headers
         headers = {
-            'Content-Type': 'multipart/form-data; boundary=%s' % BOUNDARY,
+            'Content-Type': 'multipart/form-data; boundary=%s' % BOUNDARY.decode("utf8"),
             'Content-Length': str(size),
         }
-        body = buf.getvalue()
-        buf.close()
-        resp, cont = self.con.request(
-            self.syncURL()+method, "POST", headers=headers, body=body)
-        if not badAuthRaises:
-            # return false if bad auth instead of raising
-            if resp['status'] == '403':
-                return False
-        self.assertOk(resp)
-        return cont
+        buf.seek(0)
+        return headers, buf
+
+    def req(self, method, fobj=None, comp=6, badAuthRaises=True):
+        headers, body = self._buildPostData(fobj, comp)
+
+        r = self.client.post(self.syncURL()+method, data=body, headers=headers)
+        if not badAuthRaises and r.status_code == 403:
+            return False
+        self.assertOk(r)
+
+        buf = self.client.streamContent(r)
+        return buf
 
 # Incremental sync over HTTP
 ######################################################################
@@ -607,20 +578,20 @@ class RemoteServer(HttpSyncer):
         HttpSyncer.__init__(self, hkey)
 
     def syncURL(self):
-        if os.getenv("ANKIDEV"):
-            return "https://l1.ankiweb.net/sync/"
+        if devMode:
+            return "https://l1sync.ankiweb.net/sync/"
         return SYNC_BASE + "sync/"
 
     def hostKey(self, user, pw):
         "Returns hkey or none if user/pw incorrect."
         self.postVars = dict()
         ret = self.req(
-            "hostKey", StringIO(json.dumps(dict(u=user, p=pw))),
+            "hostKey", io.BytesIO(json.dumps(dict(u=user, p=pw)).encode("utf8")),
             badAuthRaises=False)
         if not ret:
             # invalid auth
             return
-        self.hkey = json.loads(ret)['key']
+        self.hkey = json.loads(ret.decode("utf8"))['key']
         return self.hkey
 
     def meta(self):
@@ -629,13 +600,13 @@ class RemoteServer(HttpSyncer):
             s=self.skey,
         )
         ret = self.req(
-            "meta", StringIO(json.dumps(dict(
-                v=SYNC_VER, cv="ankidesktop,%s,%s"%(anki.version, platDesc())))),
+            "meta", io.BytesIO(json.dumps(dict(
+                v=SYNC_VER, cv="ankidesktop,%s,%s"%(anki.version, platDesc()))).encode("utf8")),
             badAuthRaises=False)
         if not ret:
             # invalid auth
             return
-        return json.loads(ret)
+        return json.loads(ret.decode("utf8"))
 
     def applyChanges(self, **kw):
         return self._run("applyChanges", kw)
@@ -655,17 +626,20 @@ class RemoteServer(HttpSyncer):
     def finish(self, **kw):
         return self._run("finish", kw)
 
+    def abort(self, **kw):
+        return self._run("abort", kw)
+
     def _run(self, cmd, data):
         return json.loads(
-            self.req(cmd, StringIO(json.dumps(data))))
+            self.req(cmd, io.BytesIO(json.dumps(data).encode("utf8"))).decode("utf8"))
 
 # Full syncing
 ##########################################################################
 
 class FullSyncer(HttpSyncer):
 
-    def __init__(self, col, hkey, con):
-        HttpSyncer.__init__(self, hkey, con)
+    def __init__(self, col, hkey, client):
+        HttpSyncer.__init__(self, hkey, client)
         self.postVars = dict(
             k=self.hkey,
             v="ankidesktop,%s,%s"%(anki.version, platDesc()),
@@ -673,7 +647,7 @@ class FullSyncer(HttpSyncer):
         self.col = col
 
     def syncURL(self):
-        if os.getenv("ANKIDEV"):
+        if devMode:
             return "https://l1.ankiweb.net/sync/"
         return SYNC_BASE + "sync/"
 
@@ -705,7 +679,7 @@ class FullSyncer(HttpSyncer):
             return False
         # apply some adjustments, then upload
         self.col.beforeUpload()
-        if self.req("upload", open(self.col.path, "rb")) != "OK":
+        if self.req("upload", open(self.col.path, "rb")) != b"OK":
             return False
         return True
 
@@ -719,7 +693,7 @@ class FullSyncer(HttpSyncer):
 #   assumption other syncers are in sync with the server
 #
 
-class MediaSyncer(object):
+class MediaSyncer:
 
     def __init__(self, col, server=None):
         self.col = col
@@ -729,7 +703,10 @@ class MediaSyncer(object):
         # check if there have been any changes
         runHook("sync", "findMedia")
         self.col.log("findChanges")
-        self.col.media.findChanges()
+        try:
+            self.col.media.findChanges()
+        except DBError:
+            return "corruptMediaDB"
 
         # begin session and check if in sync
         lastUsn = self.col.media.lastUsn()
@@ -852,12 +829,12 @@ class MediaSyncer(object):
 
 class RemoteMediaServer(HttpSyncer):
 
-    def __init__(self, col, hkey, con):
+    def __init__(self, col, hkey, client):
         self.col = col
-        HttpSyncer.__init__(self, hkey, con)
+        HttpSyncer.__init__(self, hkey, client)
 
     def syncURL(self):
-        if os.getenv("ANKIDEV"):
+        if devMode:
             return "https://l1.ankiweb.net/msync/"
         return SYNC_MEDIA_BASE
 
@@ -866,8 +843,8 @@ class RemoteMediaServer(HttpSyncer):
             k=self.hkey,
             v="ankidesktop,%s,%s"%(anki.version, platDesc())
         )
-        ret = self._dataOnly(json.loads(self.req(
-            "begin", StringIO(json.dumps(dict())))))
+        ret = self._dataOnly(self.req(
+            "begin", io.BytesIO(json.dumps(dict()).encode("utf8"))))
         self.skey = ret['sk']
         return ret
 
@@ -876,25 +853,25 @@ class RemoteMediaServer(HttpSyncer):
         self.postVars = dict(
             sk=self.skey,
         )
-        resp = json.loads(
-            self.req("mediaChanges", StringIO(json.dumps(kw))))
-        return self._dataOnly(resp)
+        return self._dataOnly(
+            self.req("mediaChanges", io.BytesIO(json.dumps(kw).encode("utf8"))))
 
     # args: files
     def downloadFiles(self, **kw):
-        return self.req("downloadFiles", StringIO(json.dumps(kw)))
+        return self.req("downloadFiles", io.BytesIO(json.dumps(kw).encode("utf8")))
 
     def uploadChanges(self, zip):
         # no compression, as we compress the zip file instead
-        return self._dataOnly(json.loads(
-            self.req("uploadChanges", StringIO(zip), comp=0)))
+        return self._dataOnly(
+            self.req("uploadChanges", io.BytesIO(zip), comp=0))
 
     # args: local
     def mediaSanity(self, **kw):
-        return self._dataOnly(json.loads(
-            self.req("mediaSanity", StringIO(json.dumps(kw)))))
+        return self._dataOnly(
+            self.req("mediaSanity", io.BytesIO(json.dumps(kw).encode("utf8"))))
 
     def _dataOnly(self, resp):
+        resp = json.loads(resp.decode("utf8"))
         if resp['err']:
             self.col.log("error returned:%s"%resp['err'])
             raise Exception("SyncError:%s"%resp['err'])
@@ -905,6 +882,6 @@ class RemoteMediaServer(HttpSyncer):
         self.postVars = dict(
             k=self.hkey,
         )
-        return self._dataOnly(json.loads(
-            self.req("newMediaTest", StringIO(
-                json.dumps(dict(cmd=cmd))))))
+        return self._dataOnly(
+            self.req("newMediaTest", io.BytesIO(
+                json.dumps(dict(cmd=cmd)).encode("utf8"))))
