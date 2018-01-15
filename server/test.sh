@@ -1,1 +1,0 @@
-curl -v -X POST "https://api.cognitive.microsoft.com/bing/v5.0/images/search" -H "Content-Type: multipart/form-data" -H "Ocp-Apim-Subscription-Key: 856f37af4bcc4298934e0e52c2b6c970" --data-ascii "entropy" 

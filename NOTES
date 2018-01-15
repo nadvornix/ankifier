@@ -11,9 +11,12 @@ NÁPADY:
 bylo by fajn moci v tomto rozhraní i vyrobit úplně vlastní kartičky
 pearson má u ipa britskou i americkou angličtinu. šla by udělat app která by trénovala lidi v rozdílech.
 používám jako zdroj knihy co čtu. Ale možná by bylo lepší mít frequency-wordlist.
+ipa -> pronountiation. (pearson posílá IPA přiřazený k jejich mp3)
+idea: využít nějak příbuznost slov (tj. přidávat celá významová hnízda?)
+	- a pak cvičit významové rozdíly.
+	- něco podobného doporučovali v knize z CFAR.
 
 1:
-dát klíče z public repka (obzvláště placený google)
 odstranit zbytečné soubory
 dát překlad nahoru - aby byl vidět na první obrazovce.
 dát v anki šabloně audio hned za IPA (ted je až dole)
