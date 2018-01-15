@@ -1,42 +1,90 @@
 INSTALL:
 dependency: portaudio package in ubuntu
-- sudo apt-get install libhunspell-dev
-- nltk.download('punkt')
-- python3.5
+sudo apt-get install libhunspell-dev
+nltk.download('punkt')
+python3.5
 conda install --file conda_requirements.txt; pip install -r pip_requirements.txt
 
-TODO:
-- wordnik frequency is not working well
-
 NOTES:
-- bylo by fajn moci v tomto rozhraní i vyrobit úplně vlastní kartičky
-- automatický preselect: "wiki" = ostatní uživatelé, pak british audio, first image...
-- words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
-- dát klíče z public repka (obzvláště placený google)
-- dát překlad nahoru - aby byl vidět na první obrazovce.
-- možnost je stahovat obrázky i z flickeru a dát na výběr oboje.
-- prý je dobrý websterův slovník (1913 je ke stežení), nebo je na dict.org které má api.
-ukázání jak běžné dané slovo je. A jestli je více mluvené/psané/historické/...
-dát audio hned za IPA (ted je až dole)
-kolem ipa jsou občas mezery nebo dvoje závorky
-tlačítko "zaškrtnout/odškrtnout vše" - min. k překladům.
-až budu dělat konkurenci anki, tak mohu řadit kartičky nejen podle anki-algoritmu, ale i podle četnosti slovíčka. (tj. častá slovíčka budou mít přednost)
-udělat unique na IPA - občas se tam opakují.
-ipa a audio může být radio button.(asi)
-odstranit slovo samotné z synonym, variant
-udělat to i pro češtinu - s hledáním v ujč slovníkách
-mít tlačítko "submit" vždy přítomné
+words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
+NÁPADY: 
+bylo by fajn moci v tomto rozhraní i vyrobit úplně vlastní kartičky
 pearson má u ipa britskou i americkou angličtinu. šla by udělat app která by trénovala lidi v rozdílech.
-používám jako zdroj knihy co čtu. Ale možná by bylo lepší mít frequency-wordlist. 
-odkaz na licenci u wikitionary je zbytečný.
-dobré by bylo si ukládat všechna data v strojové podobě (Třeba do html komentáře v anki), tak abych kartičky mohl následně editovat uvnitř ankifieru.
-možnost si tam dopsat něco ručně.
-mohu vykrást ten anki plugin co umí předčítat (příp. podobné)
+používám jako zdroj knihy co čtu. Ale možná by bylo lepší mít frequency-wordlist.
+
+1:
+dát klíče z public repka (obzvláště placený google)
+odstranit zbytečné soubory
+dát překlad nahoru - aby byl vidět na první obrazovce.
+dát v anki šabloně audio hned za IPA (ted je až dole)
+tlačítko co umožní označit/odoznačit všechny překlady/...
+zkusit jestli jde mít víc definic a pod.
+examples are not working (ale wordnik je nedává, asi maj chybu)
+vědět jak moc časté dané slovo je.
+sentence:
+	- buď spravit sentence v chrome, nebo odstranit políčko.
+	- udělat políčko.
+udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
+http://localhost:5000/word?w=pill
+ukládat obrázky v rozumném rozlišení - teď se občas stahují velmi dlouho.
 dát překládané slovíčko do title
 připisovat slovíčko do seznamu "words" .. kt. bude sloužit jako dobrá záloha.
+nefungují příkladové věty.
+udělat unique na IPA - občas se tam opakují. kolem ipa jsou občas mezery nebo dvoje závorky
+ipa a audio může být radio button.(asi)
+dát odkazy aby slovo bylo na konci
+z audia předvybrat tu která je britská a nejpodobnější
+	(jednostraná L-distance?)
+odkaz na licenci u wikitionary je zbytečný.
+dobré by bylo si ukládat všechna data v strojové podobě (Třeba do html komentáře v anki), tak abych kartičky mohl následně editovat uvnitř ankifieru.
+ukázání jak běžné dané slovo je. A jestli je více mluvené/psané/historické/...
+prý je dobrý websterův slovník (1913 je ke stežení), nebo je na dict.org které má api.
+nepřekládat když 
+možnost je stahovat obrázky i z flickeru a dát na výběr oboje.
+automatický preselect: "wiki" = ostatní uživatelé, pak british audio, first image...
+set favicon
+
+2:
+zkusit python vulture
+méně redundantní šablony (včetně odkazů na synonyma, atd.)
+	- zobrazit jenom ty části které většinou zaškrtnu, a ty ostatní jen mimochodem.
+dát lepší klávesovou zkratku do chrome rozšíření
+spravit zadávání vět z chrome rozšíření
+zvýrazňovat použité slovo i v stažených příkladech
+if not hunspell_GB.check or not hunspell_US.check...
+dovymyslet: víceuživatelský systém
+vzhled
+možnost si tam dopsat něco ručně.
+mohu vykrást ten anki plugin co umí předčítat (příp. podobné)
 případně i zapisovat jak bylo slovíčko nastaveno při posledním submitu - takže bude jednodušší přegenerovat všechny kartičky když přidám novou feature.
-otázka: co dělat když najdu slovo v nové frázi: eg "roundly abused" které nerozumí
-http://localhost:5000/word?w=pill
+analyze: co dělat když najdu slovo v nové frázi: eg "roundly abused" které nerozumí
+udělat to i pro češtinu - s hledáním v ujč slovníkách
+mít tlačítko "submit" vždy přítomné
+odstranit slovo samotné z synonym, variant
+problém: heather -> různá vlastní jména.
+
+3:
+pearson občas přikládá i synonyma: namísto odstranění významů, přidat odkazy na příbuzné významy/headwords
+jiný program má funkci že když do text-inputu zadám synonymum k tomu co jsem měl, tak mi řekne že je to synonymum.
+	-> můžeme používat wordnet k tomu abychom explicitně věděli že studujeme angličtinu.
+	- nikoli obecné SRS, jako anki.
+	- nebo bych tohle mohl udělat v ankifieru: dát do kartičky odkazy na slovíčka co už mám v anki
+
+
+# Less important:
+vlastní slovo kt. zadat do bing images & drag&drop image selection
+otravné: když zmáčknu mezerník tak se odoznačí poslední kousek co jsem označil. Nemísto paby popojela obrazovka. - pak to bude menší na výšku.
+dát informaci o tom jak moc se dané slovo používá a jak moc je britské/americké high/low class
+víceslovní spojení moc nefungují. rozložím je na jednotlivá slova
+
+# K promyšlení:
+tag created cards
+
+# Konkurence anki:
+anki zobrazuje občas jednu kartičku opakovaně - když je jediná neudělaná v balíčku
+	- přidat nějaké kartičky z budoucnosti/odjinut
+mohu řadit kartičky nejen podle anki-algoritmu, ale i podle četnosti slovíčka. (tj. častá slovíčka budou mít přednost)
+volba us/gb (spellcheck, ipas, mp3s...)
 
 
 Stránky se slovíčky:
@@ -57,89 +105,38 @@ http://www.azquotes.com/picture-quotes/quote-truth-is-generally-the-best-vindica
 http://images.digopaul.com/wp-content/uploads/related_images/2015/09/08/disabuse_2.jpg
 http://www.lear200.com/sites/lear200.com/files/t_2.png
 
-TODO:
-- nefungují příkladové věty.
-- vzhled
-
-- dát odkazy aby slovo bylo na konci
-- z audia předvybrat tu která je nejpodobnější
-	(jednostraná L-distance?)
-
-- zvýrazňovat použité slovo i v stažených příkladech
-- ukládat obrázky v rozumném rozlišení - teď se občas stahují velmi dlouho.
-
-- udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
-
-- méně redundantní šablony (včetně odkazů na synonyma, atd.)
-	- zobrazit jenom ty části které většinou zaškrtnu, a ty ostatní jen mimochodem.
-
-- zvuk nefunguje v ankidroid.
-- dovymyslet: víceuživatelský systém
-
-- namísto odstranění významů, přidat odkazy na příbuzné významy/headwords
-- sentence:
-	- buď spravit sentence v chrome, nebo odstranit políčko.
-	- udělat políčko.
-- vědět jak moc časté dané slovo je.
-- exampels are not working (ale wordnik je nedává, asi maj chybu)
-
-- jiný program má funkci že když do text-inpu zadám synonymum k tomu co jsem měl, tak mi řekne že je to synonymum.
-	-> můžeme používat wordnet k tomu abychom explicitně věděli že studujeme angličtinu.
-	- nikoli obecné SRS, jako anki.
-
-- anki zobrazuje občas jednu kartičku opakovaně - když je jediná neudělaná v balíčku
-	- přidat nějaké kartičky z budoucnosti/odjinut
-
-- přidat informace o tom jak je slovo časté (resp. jestli je britské/americké. Formální/vulgární/...)
-- tag created cards
-- do ankifieru: if not hunspell_GB.check or not hunspell_US.check...
-
-
-Less important:
-- vlastní slovo kt. zadat do bing images & drag&drop image selection
-- otravné: když zmáčknu mezerník tak se odoznačí poslední kousek co jsem označil. Nemísto paby popojela obrazovka. - pak to bude menší na výšku.
-- dát informaci o tom jak moc se dané slovo používá a jak moc je britské/americké high/low class
-- jak v šablonách dělat odkazy na sebe?
-- víceslovní spojení moc nefungují. rozložím je na jednotlivá slova
-
-LATER:
-- problém: heather -> různá vlastní jména.
-- volba us/gb (spellcheck, ipas, mp3s...)
-
-
 NOTES:
-- Nesmíme moc zadávat víceslovní spojení.
-
+Nesmíme moc zadávat víceslovní spojení.
 
 Errors: inveighing, encroache
 
 DOBRÉ WEBY:
-- https://wordpandit.com/
-- http://www1.icsi.berkeley.edu/~demelo/etymwn/
+https://wordpandit.com/
+http://www1.icsi.berkeley.edu/~demelo/etymwn/
 	- resp. lexvo.org - dají se vytahat i překlady a pod. Resp. různé rozšíření wordnetu
-- https://glosbe.com/en/cs/prediction
+https://glosbe.com/en/cs/prediction
 	- větší fráze vč. překladu
-- https://words.bighugelabs.com/eloquence
+https://words.bighugelabs.com/eloquence
 
 TO CHECK:
-- jestli se v anki zobrazují správně všechna políčka
+jestli se v anki zobrazují správně všechna políčka
 
 Heuristiky:
-- dolní skupina IPAs
-- první audio z první skupiny, co je british english (to je to s nepřesnějším matchem)
+dolní skupina IPAs
+první audio z první skupiny, co je british english (to je to s nepřesnějším matchem)
 
 Before public launch:
-- log exceptions & put there logging
-- think how it is able to sustain traffic?
+log exceptions & put there logging
+think how it is able to sustain traffic?
 	- esp. malicious/bad-formatted/super-long...
-- disable debug mode
-- make easy deployment
-- make public links to API I use.
-- ask for higher API quotas.
-- make it less fragile
+disable debug mode
+make easy deployment
+make public links to API I use.
+ask for higher API quotas.
+make it less fragile
 
 IDEAS:
-- když mám zadat cat a zadám dog (existující kartička), tak mně to upozorní na to že je to už existující kartička
+když mám zadat cat a zadám dog (existující kartička), tak mně to upozorní na to že je to už existující kartička
 
 AUTH:
-- do not store their media, only mine.
+do not store their media, only mine.

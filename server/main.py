@@ -18,10 +18,10 @@ import nltk
 from fuzzywuzzy import process
 from flask import Flask, render_template, request, session
 
-app = Flask(__name__, static_url_path='/static')
+from apikeys import *
 
-wordnikApiUrl = 'http://api.wordnik.com/v4/'
-wordnikApiKey = '6ba4e1c8a2b0546c7b0080b84fd08feb6ffdd3de24ea7b8c1'
+
+app = Flask(__name__, static_url_path='/static')
 
 hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic', '../spellcheck_dicts/en_GB.aff')
 
@@ -30,39 +30,12 @@ def make_session_permanent():
     session.permanent = True
 
 
-# def get_images_data(word, pool, futures):
-#     def fut(word):
-
-#         headers = {
-#             # Request headers
-#             'Content-Type': 'multipart/form-data',
-#             'Ocp-Apim-Subscription-Key': '856f37af4bcc4298934e0e52c2b6c970',
-#         }
-
-#         params = urllib.parse.urlencode({
-#             "q": word
-#         })
-
-#         try:
-#             conn = http.client.HTTPSConnection('api.cognitive.microsoft.com')
-#             conn.request("POST", "/bing/v5.0/images/search?%s" % params, "{body}", headers)
-#             response = conn.getresponse()
-#             data = response.read()
-#             conn.close()
-#             data_json = json.loads(data.decode("utf8"))
-#             return data_json
-#         except Exception as e:
-#             print("[Errno {0}] {1}".format(e.errno, e.strerror))
-#             return {"images": None}
-
-#     futures["images"] = pool.submit(fut, (word))
-
 def get_images_data(word, pool, futures):
-    service = build("customsearch", "v1", developerKey="AIzaSyCggWpdxOy0S-VGD7prKCezMNDTKdUVaZ4")
+    service = build("customsearch", "v1", developerKey=googleDevKey)
     def fut(word):
         res = service.cse().list(
             q=word,
-            cx='016358747817454183055:uquqshwztai',
+            cx=googleCX,
             searchType='image',
             num=10,
             #imgType='clipart',
@@ -176,7 +149,7 @@ def get_wordnik_data(word, pool, futures):
     def download_wordnik_data(params):
         name, url = params
         data = requests.get(wordnikApiUrl + url.format(word=word), params={"api_key": wordnikApiKey}).json()
-        # print("xxx", data)
+        # print("yyy", data)
         return process_data[name](data)
 
     urls = {
