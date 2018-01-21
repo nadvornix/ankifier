@@ -1,3 +1,4 @@
+pyquery
 google-api-python-client
 pyaudio
 fuzzywuzzy

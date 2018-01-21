@@ -15,54 +15,58 @@ ipa -> pronountiation. (pearson posílá IPA přiřazený k jejich mp3)
 idea: využít nějak příbuznost slov (tj. přidávat celá významová hnízda?)
 	- a pak cvičit významové rozdíly.
 	- něco podobného doporučovali v knize z CFAR.
+spojit to s slovníkem cizích slov abz, nebo s tím co mám doma nebo s slovníkama z újč co mám v záložkách
+možnost dávat do anki slovníkové koncepty/hesla (tj. encyklopedické znalosti)
 
 1:
-odstranit zbytečné soubory
-dát překlad nahoru - aby byl vidět na první obrazovce.
-dát v anki šabloně audio hned za IPA (ted je až dole)
 tlačítko co umožní označit/odoznačit všechny překlady/...
-zkusit jestli jde mít víc definic a pod.
-examples are not working (ale wordnik je nedává, asi maj chybu)
-vědět jak moc časté dané slovo je.
-sentence:
-	- buď spravit sentence v chrome, nebo odstranit políčko.
-	- udělat políčko.
-udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
-http://localhost:5000/word?w=pill
-ukládat obrázky v rozumném rozlišení - teď se občas stahují velmi dlouho.
-dát překládané slovíčko do title
-připisovat slovíčko do seznamu "words" .. kt. bude sloužit jako dobrá záloha.
-nefungují příkladové věty.
-udělat unique na IPA - občas se tam opakují. kolem ipa jsou občas mezery nebo dvoje závorky
-ipa a audio může být radio button.(asi)
-dát odkazy aby slovo bylo na konci
-z audia předvybrat tu která je britská a nejpodobnější
-	(jednostraná L-distance?)
-odkaz na licenci u wikitionary je zbytečný.
-dobré by bylo si ukládat všechna data v strojové podobě (Třeba do html komentáře v anki), tak abych kartičky mohl následně editovat uvnitř ankifieru.
 ukázání jak běžné dané slovo je. A jestli je více mluvené/psané/historické/...
-prý je dobrý websterův slovník (1913 je ke stežení), nebo je na dict.org které má api.
-nepřekládat když 
-možnost je stahovat obrázky i z flickeru a dát na výběr oboje.
-automatický preselect: "wiki" = ostatní uživatelé, pak british audio, first image...
-set favicon
+ukládat highlighnutou větu z parametru SEN. Problém: nevím kdy je tam jen defaultní SEN a kdy ji chci uložit
+z audia předvybrat tu která je britská a nejpodobnější (jednostraná L-distance?)
+udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
+html se v definicích špatně zobrazuje (http://localhost:5000/word?s=SEN&w=seer)
 
 2:
+dát více zdrojů obrázků (bing/google/francouzi/flickr/mediawiki...)
+- mohu do google api dávat site: ?
+- nebo hledat paintings.
+z frází zpracovávám jen první slovo http://localhost:5000/word?s=SEN&w=dole%20out
+etymologie
+- google má hezkou.
+četnost používání v historii?
+nějak zakázat aby inputy měly focus a tak mezerník vždy pohybuje a neodškrtává
+příbuzná slova (zajímavá spojení)
+možná dát první překlad, až pak ipa a audio.
+pravidlo "když je jen jedna k dispozici tak ji rovnou zaškrtni" u audio, ipa, example, té první definition...
+analyze: co s slovama s několika významama.
+mít u mé anki-alternativy opensource db ke stažení a propagovat to skrz ni (podobně jako tldr/bropages)
+bylo by dobré mít db příbuznosti slov napříč jazyky.
+dávat do komentářů odkud jsou které data (až to budu pouštět veřejně)
+link v kartičce (edit online) která předvyplní všechno, včetně informace od id kartičky která se edituje.
+co dělat s slovíčkama která mají několik významů
+jak se učit fráze jako "gouging out". Nebo idiomy jako "he was well known, if not famous".
+použít více cz-en slovníků?
+špatně funguje tahání dat z macmillan: http://localhost:5000/word?s=SEN&w=succor
+možnost odškrtnout radio button u obrazků
+nedávat ipa které jsou jen zlomky slova
+logování chyb (aby se daly později prohlédnout)
+refactor
+sentence:
+	- buď spravit sentence v chrome, nebo odstranit políčko.
+podívat se jaký data dostávám a jestli tam není něco co by se hodilo
 zkusit python vulture
+pustit na to flake8
 méně redundantní šablony (včetně odkazů na synonyma, atd.)
 	- zobrazit jenom ty části které většinou zaškrtnu, a ty ostatní jen mimochodem.
 dát lepší klávesovou zkratku do chrome rozšíření
 spravit zadávání vět z chrome rozšíření
-zvýrazňovat použité slovo i v stažených příkladech
 if not hunspell_GB.check or not hunspell_US.check...
 dovymyslet: víceuživatelský systém
 vzhled
 možnost si tam dopsat něco ručně.
 mohu vykrást ten anki plugin co umí předčítat (příp. podobné)
-případně i zapisovat jak bylo slovíčko nastaveno při posledním submitu - takže bude jednodušší přegenerovat všechny kartičky když přidám novou feature.
 analyze: co dělat když najdu slovo v nové frázi: eg "roundly abused" které nerozumí
 udělat to i pro češtinu - s hledáním v ujč slovníkách
-mít tlačítko "submit" vždy přítomné
 odstranit slovo samotné z synonym, variant
 problém: heather -> různá vlastní jména.
 
@@ -120,6 +124,9 @@ http://www1.icsi.berkeley.edu/~demelo/etymwn/
 https://glosbe.com/en/cs/prediction
 	- větší fráze vč. překladu
 https://words.bighugelabs.com/eloquence
+https://www.wordsapi.com/
+https://boingboing.net/2014/05/29/you-should-try-the-1913-webste.html
+freedict je free vícejazyčný slovník.
 
 TO CHECK:
 jestli se v anki zobrazují správně všechna políčka

@@ -6,6 +6,10 @@
 {% endfor %}
 </em>)
 {%endif%}
+{% if audio_filename %}
+[sound:{{audio_filename}}] </br>
+{% endif %}
+
 
 {% if definitions %}
 <ul>
@@ -36,12 +40,10 @@ Examples:
 <img src="{{img_filename}}" /><br/>
 {% endif %}
 
-{% if audio_filename %}
-[sound:{{audio_filename}}] </br>
+{% if 'add_etymology' in data %}
+<p>{{data.etymology[0]}}<br>
 {% endif %}
-
-
-
+    
 {%if data.equivalent %}
     <strong>equivalent: </strong>
     {%for elem in data.equivalent %}
@@ -145,3 +147,7 @@ Examples:
         {{elem}}{% if not loop.last %},{% endif %}
     {%endfor%} <br/>
 {%endif%}
+
+<!--
+{{data_json|safe}}
+-->
