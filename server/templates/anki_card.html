@@ -10,6 +10,9 @@
 [sound:{{audio_filename}}] </br>
 {% endif %}
 
+{% if data.s_html %}
+    ({{data.s_html|safe}})<br>
+{% endif %}
 
 {% if definitions %}
 <ul>
@@ -27,23 +30,21 @@
 
 {% if data.example %}
 Examples:
-<em>
 <ul>
     {% for ex in data.example %}
-    <li>{{ex}}</li>
+    <li>{{ex|safe}}</li>
     {% endfor %}
 </ul>
-</em>
 {% endif %}
 
 {% if img_filename %}
 <img src="{{img_filename}}" /><br/>
 {% endif %}
 
-{% if 'add_etymology' in data %}
+{% if data.etymology[0] %}
 <p>{{data.etymology[0]}}<br>
 {% endif %}
-    
+
 {%if data.equivalent %}
     <strong>equivalent: </strong>
     {%for elem in data.equivalent %}

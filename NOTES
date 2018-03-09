@@ -4,6 +4,7 @@ sudo apt-get install libhunspell-dev
 nltk.download('punkt')
 python3.5
 conda install --file conda_requirements.txt; pip install -r pip_requirements.txt
+https://chrome.google.com/webstore/developer/dashboard
 
 NOTES:
 words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
@@ -18,65 +19,110 @@ idea: využít nějak příbuznost slov (tj. přidávat celá významová hnízd
 spojit to s slovníkem cizích slov abz, nebo s tím co mám doma nebo s slovníkama z újč co mám v záložkách
 možnost dávat do anki slovníkové koncepty/hesla (tj. encyklopedické znalosti)
 
+STATE:
+
 1:
-tlačítko co umožní označit/odoznačit všechny překlady/...
-ukázání jak běžné dané slovo je. A jestli je více mluvené/psané/historické/...
-ukládat highlighnutou větu z parametru SEN. Problém: nevím kdy je tam jen defaultní SEN a kdy ji chci uložit
-z audia předvybrat tu která je britská a nejpodobnější (jednostraná L-distance?)
-udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
-html se v definicích špatně zobrazuje (http://localhost:5000/word?s=SEN&w=seer)
+nefunguje výběr štůsku pro cloze.
+pick a domain
+prepare deploy script
+nastavit logování vyjímek, a dát print->logging
+v rozšíření nastavit správnou adresu
+
+ignoruju nastavení štůsků v main.py
+dát sync při prvním přihlášení - tj při vytváření adresáře.
+otestovat jestli jsem nerozbil možnost použití decku Basic v jiných štůskách. Kvůli basic_model['did'] = deckId
+spravit výrobu spelling cards
+
+udělat automaticék hledání příkladových vět /třeba včetně překladu) ve kterých bude více slov co už jsem se naučil a jedno nové.
+udělat počítadlo jak jsem daleko - kolik jsem se toho naučil. Plynulá znalost jazyka = 10 000 bodů
+lepší měřítko v tom kolik kartiček je v jakém stavu: jestli se furt věnuju jednoduchým, nebo jestli "mature" rostou. - a vidět rozdíly v čase.
+lidi co dělají dobré anki štůsky mohou mít dobré nápady.
+možnost měřit experimenty (a teĎ si to budu říkat nahlas...)
+mít měřítko "rychlosti učení" - jak dobře jsem si pamatoval/zapamatovával za jednu vteřinu v danou session.
 
 2:
-dát více zdrojů obrázků (bing/google/francouzi/flickr/mediawiki...)
-- mohu do google api dávat site: ?
-- nebo hledat paintings.
+k vybrání slov v examples namísto L-distance můžu používat třeba stanford NLP nebo podobně (eg: avail is closer to "I" than to "availability")
+dát enaudio s textem "panache, as in "he dressed with panache" -> text input w/ spelling
+udělat kartičky specializované na výslovnost?
+vymyslet jak se učit minimální páry?
+v cloze vyrábět jednu note s mnoha cards (?)
+rozmyslet si jak využít data z wordnetu.
+v cloze bych občas rád viděl standardní kartičku.
+z českých slovíček v cloze odebrat ty které jsou velmi podobné anglickému. (eg: truism)
+zaškrtávátko na povolování/zakazování výroby clozes
+Nápad karin: u každé kartičky vidět jak moc dobře už ji znám (tj. abych měl radost kolik práce jsem už pro ni odvedl.). 
+funguje: dát do googlu "surly adj"
+vymyslet způsob jak zadat že se mi dvě kartičky pletou a vymyslet způsob jak se naučit jejich rozdíl.
+možná by pomohlo mít možnost "přepnout do dummy modu" ve kterém se učím, ale nemohu věci moc pokazit. - Nebo dynamicky určovat aktuální fitness mysli a podle toho určit jak těžké kartičky dávat.
+úvaha: příliš se hrabu v algoritmu anki. A nedostatečně ve všech ostatních věcech o kterých polygloti mluví.
+nápad: mohl bych mít hru na synonyma. (data z wordnetu)
+zjistit jak se ukládají obrázky. Možná by bylo lepší je ukládat jako hash.jpg.
+psaní anglického slovíčka
+mojeanki by mohlo mít několik typů otázek a všechny pospojované dohromady (tak abych neměl cloze-deletions od slovíček které jsem se ještě neučil).
+na program co učí minimap pronunciation pairs se da použít ta db co mi ukazovala Ari a nebo ten anki plugin co umí přečíst cokoli
+mohl bych vyrábět kartičky audio -> napsání anglické kartičky.
+krátká IPA: http://localhost:5000/word?w=recuperate
+zaškrtnutý audio přečíst při zobrazení stránky
+využít word2vec k namalování blýzkých slov (a třeba ať to najde google)
+udělat automatický import nejpoužívanějších slovíček včetně mé schopnosti je napsat v ipě.
+mít možnost dát že jsem si to spletl s nějakým jiným slovem a ono by to potom je počítalo zvlášť.
+jednoduchý způsob jak udělat z ohnutého slovíčka headword (jen odkaz)
+možnost zaškrtnout dva obrázky (?) ... ale mám rád že nemusím odklikávat ten předcházející.
+můžeme měřit výkon paměti (pro testování interencí) - a to krátkodobě tak i jak moc práce daný den byla efektivní.
+vybírat IPA a audio jedním přepínačem dohromady (protože možná mi choděj dohromady pod jedním headword)
+dát možnost vložit URL obrázku.
+občas zmizí obrázek (unctuous)
+cloze by mohly přečíst po zobrazení odpovědi.
+bug: chrome-rozšíření: hodí nový tab i při sérii mousedown->ctrldown->mouseup.
+jednostraná editační vzdálenost znamená že mazání/přidávání znaků v jednom směru je zadarmo
+- nebo možná lepší je podle headword & vybrat british.
+spravit debugger
+- zkusil jsem a konsole tam stále neběhá. Nechápu proč. 
+zvážit jestli nerozšiřovat výber věty jen na pár slov.
+
+3
+fluentcards:
+  https://forum.language-learners.org/viewtopic.php?t=5762
+  http://www.srscollector.com/
+  https://www.reddit.com/domain/fluentcards.com/
+  https://github.com/katspaugh/fluentcards
+https://membean.com/
+stáhnout jako memrise balíček
+automatické generování cloze (ve stylu fluentcards.com)
+udělat dvoujazyčný kartičky a využít víc anki fields (je to správný název?)
+nápad na experiment: vyrábět cloze deletion kartičky z příkladových vět, které budou všechny mít společný EF. A společný bude i s anglish audio -> writtin it in english/czech.:
 z frází zpracovávám jen první slovo http://localhost:5000/word?s=SEN&w=dole%20out
-etymologie
-- google má hezkou.
-četnost používání v historii?
-nějak zakázat aby inputy měly focus a tak mezerník vždy pohybuje a neodškrtává
+při zadání nového slovíčka se podívat do anki db a najít nejpodobnější slovíčka - a zobrazit varování a možnost ho neuložit.
 příbuzná slova (zajímavá spojení)
-možná dát první překlad, až pak ipa a audio.
-pravidlo "když je jen jedna k dispozici tak ji rovnou zaškrtni" u audio, ipa, example, té první definition...
-analyze: co s slovama s několika významama.
-mít u mé anki-alternativy opensource db ke stažení a propagovat to skrz ni (podobně jako tldr/bropages)
-bylo by dobré mít db příbuznosti slov napříč jazyky.
 dávat do komentářů odkud jsou které data (až to budu pouštět veřejně)
 link v kartičce (edit online) která předvyplní všechno, včetně informace od id kartičky která se edituje.
 co dělat s slovíčkama která mají několik významů
-jak se učit fráze jako "gouging out". Nebo idiomy jako "he was well known, if not famous".
-použít více cz-en slovníků?
-špatně funguje tahání dat z macmillan: http://localhost:5000/word?s=SEN&w=succor
-možnost odškrtnout radio button u obrazků
-nedávat ipa které jsou jen zlomky slova
-logování chyb (aby se daly později prohlédnout)
-refactor
-sentence:
-	- buď spravit sentence v chrome, nebo odstranit políčko.
-podívat se jaký data dostávám a jestli tam není něco co by se hodilo
-zkusit python vulture
-pustit na to flake8
+   - slovníky mi dávají data rozdělená podle "headwords" - mohl bych mít zvlášť kartičku pro každý headword.
 méně redundantní šablony (včetně odkazů na synonyma, atd.)
 	- zobrazit jenom ty části které většinou zaškrtnu, a ty ostatní jen mimochodem.
-dát lepší klávesovou zkratku do chrome rozšíření
-spravit zadávání vět z chrome rozšíření
-if not hunspell_GB.check or not hunspell_US.check...
-dovymyslet: víceuživatelský systém
-vzhled
 možnost si tam dopsat něco ručně.
 mohu vykrást ten anki plugin co umí předčítat (příp. podobné)
 analyze: co dělat když najdu slovo v nové frázi: eg "roundly abused" které nerozumí
-udělat to i pro češtinu - s hledáním v ujč slovníkách
 odstranit slovo samotné z synonym, variant
 problém: heather -> různá vlastní jména.
-
-3:
+jak si trénovat různé klávesové zkratky (pro bash, vim...). To by mohlo být zajímavé pro prozkoumání jak funguje terminál.
+    - v podstatě bych měl dva terminály vedle sebe. V jednom bych poslal simulovanou klávesovou zkratku a v druhém bych čekal dokud nezmáčkne správnou kombinaci kláves (nebo dokud na obrazovce není to samé).
+    - nebo bych mohl mít jednoduchý způsob jak vyrábět gify a odstranit tak komplikace s vimem v terminálu. A jen bych sledoval stisknuté klávesové zkratky. A mohlo by to běžet online. Když by k tomu byl skript na jednoduché vytváření nových kurzů tak by to mohlo mít rozumný úspěch. Mohlo by to být součástí nového ankifieru.
+udělat to i pro češtinu - s hledáním v ujč slovníkách
+analyze: co s slovama s několika významama.
+jak se učit fráze jako "gouging out". Nebo idiomy jako "he was well known, if not famous".
+z audia předvybrat tu která je britská a nejpodobnější (jednostraná L-distance?)
 pearson občas přikládá i synonyma: namísto odstranění významů, přidat odkazy na příbuzné významy/headwords
 jiný program má funkci že když do text-inputu zadám synonymum k tomu co jsem měl, tak mi řekne že je to synonymum.
 	-> můžeme používat wordnet k tomu abychom explicitně věděli že studujeme angličtinu.
 	- nikoli obecné SRS, jako anki.
 	- nebo bych tohle mohl udělat v ankifieru: dát do kartičky odkazy na slovíčka co už mám v anki
 
+# Víceuživatelská verze:
+deck.decks.allNames()
+
+pak:
+backups
 
 # Less important:
 vlastní slovo kt. zadat do bing images & drag&drop image selection
@@ -91,8 +137,9 @@ tag created cards
 anki zobrazuje občas jednu kartičku opakovaně - když je jediná neudělaná v balíčku
 	- přidat nějaké kartičky z budoucnosti/odjinut
 mohu řadit kartičky nejen podle anki-algoritmu, ale i podle četnosti slovíčka. (tj. častá slovíčka budou mít přednost)
+mít u mé anki-alternativy opensource db ke stažení a propagovat to skrz ni (podobně jako tldr/bropages)
 volba us/gb (spellcheck, ipas, mp3s...)
-
+možnost dát zpět.
 
 Stránky se slovíčky:
 wordpandit.com

@@ -1,30 +1,27 @@
-import itertools
-from lxml import etree
-from os import path
+import os
 import json
 import time
+import base64
 from hashlib import md5
-import urllib.error
-import urllib.parse
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
-from apiclient.discovery import build
+import apis
 import hunspell
 import requests
-import nltk
-from fuzzywuzzy import process
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, make_response
+from flask.ext.session import Session
 from PIL import Image
-from pyquery import PyQuery as pq
-from apikeys import *
+from settings import *
+from utils import highlight_sentence
 
 app = Flask(__name__, static_url_path='/static')
 
 hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic',
                          '../spellcheck_dicts/en_GB.aff')
-tree = etree.parse("data/WebstersUnabridged.xml")
+
+app.config.from_object(__name__)
+Session(app)
 
 
 @app.before_request
@@ -32,213 +29,17 @@ def make_session_permanent():
     session.permanent = True
 
 
-def get_images_data(word, pool, futures):
-    service = build("customsearch", "v1", developerKey=googleDevKey)
-
-    def fut(word):
-        res = service.cse().list(
-            q=word, cx=googleCX, searchType='image', num=10,
-            safe='off').execute()
-        return {"images": res.get("items") or ""}
-
-    futures["images"] = pool.submit(fut, (word))
-
-
-def get_etymonline_data(word, pool, futures):
-    def fut(word):
-        try:
-            d = pq(url="https://www.etymonline.com/word/{}".format(word))
-        except urllib.error.HTTPError:  # not found
-            return None
-        try:
-            return d("section")[0].text_content()
-        except IndexError:
-            return None
-
-    futures["etymology"] = pool.submit(fut, (word))
-
-
-def get_webster_data(word):
-    def take_subelements(element, class_):
-        return [
-            elem.text.strip()
-            for elem in element.cssselect(".{}".format(class_))
-        ]
-
-    entries = tree.find('.//entry[@title="{}"]'.format(word.upper()))
-    keys = [
-        "definition", "etymology", "pronunciation", "part_of_speech",
-        "specialty"
-    ]
-    data = {key: [] for key in keys}
-    if entries is not None:
-        for entry in entries:
-            for key in keys:
-                data[key] += take_subelements(entry, key)
-    return data
-
-
-def parse_pronunciations(results):
-    ipas = []
-    for r in results:
-        if r.get("pronunciations"):
-            for pron in r["pronunciations"]:
-                if pron.get("ipa"):
-                    for ipa in [p.split() for p in pron["ipa"].split(",")]:
-                        ipas += ipa
-                    break  # just from inner cycle
-    # unique:
-    ipas = list(set([ipa.strip() for ipa in ipas]))
-    return ipas
-
-
-def parse_audios(results):
-    all_audios = []
-    for r in results:
-        if r.get("pronunciations"):
-            for pron in r["pronunciations"]:
-                if pron.get("audio"):
-                    for a in pron["audio"]:
-                        a["filename"] = path.basename(a["url"])
-                    all_audios.append(pron["audio"])
-
-    return list(itertools.chain.from_iterable(all_audios))  # flatten
-
-
-def unique_list(l):
-    return list(set([s.strip() for s in l]))
-
-
-def parse_senses(results):
-    senses = []
-    exs = []
-
-    for r in results:
-        if r.get("senses"):
-            for s in r["senses"]:
-                s["part_of_speech"] = r.get("part_of_speech")
-                s["definition"] = s.get("definition") or ''
-                if s.get("definition") and type(s["definition"]) != list:
-                    s["definition"] = [s["definition"]]
-                else:
-                    senses.append(s)
-
-                examples = s.get("examples") or []
-                for example in examples:
-                    # print("type(pearson.example)==",type(example))
-                    if example and example.get("text"):
-                        exs.append(example["text"])
-    return senses, unique_list(exs)
-
-
-def get_pearson_data(word, pool, futures):
-    url = "http://api.pearson.com/v2/dictionaries/entries?headword={word}&limit=100"
-
-    def fut(word):
-        data_json = requests.get(
-            url.format(word=word), headers={
-                "Accept": "application/json"
-            }).text
-        # print("###", data_json)
-        if not data_json:
-            return None
-        data = json.loads(data_json)
-        # pprint (data)
-        results = data.get("results") or []
-        selected_dicts = ["ldoce5", "lasde", "wordwise", "laad3"]
-        selected_results = [
-            r for r in results if (set(r["datasets"]) & set(selected_dicts))
-        ]
-
-        ipas = parse_pronunciations(selected_results)
-        audios = parse_audios(selected_results)
-        senses, examples = parse_senses(selected_results)
-        examples = [highlight_sentence(example, word) for example in examples]
-
-        return {
-            "ipas": ipas,
-            "audios": audios,
-            "senses": senses,
-            "examples": examples
-        }
-
-    futures["pearson"] = pool.submit(fut, (word))
-
-
-def get_glosbe_data(word, from_, dest, pool, futures):
-    url = "https://glosbe.com/gapi/translate?from={from_}&dest={dest}&format=json&phrase={word}&pretty=true"
-
-    def fut(word):
-        json_doc = requests.get(url.format(word=word, from_=from_,
-                                           dest=dest)).text
-        data = json.loads(json_doc)
-        translations = []
-        definitions = []
-        for item in data['tuc']:
-            if 'phrase' in item:
-                translations.append(item['phrase']['text'])  # xxx: fragile
-            if 'meanings' in item:
-                for meaning in item['meanings']:
-                    definitions.append(meaning['text'])  # xxx: fragile
-        # print(translations, definitions)
-        return {"translations": translations, "definitions": definitions}
-
-    futures["glosbe"] = pool.submit(fut, (word))
-
-
-def process_related(data):
-    return {d["relationshipType"]: d["words"] for d in data}
-
-
-def get_wordnik_data(word, pool, futures):
-
-    process_data = {
-        "cannonical": lambda data: data.get("canonicalForm"),
-        "definitions": lambda data: data,
-        "relatedWords": process_related,
-        "pronunciations": lambda data: data,
-        "phrases": lambda data: data,
-        "audio": lambda data: data,
-    }
-
-    def download_wordnik_data(params):
-        name, url = params
-        data = requests.get(
-            wordnikApiUrl + url.format(word=word),
-            params={
-                "api_key": wordnikApiKey
-            }).json()
-        # print("yyy", data)
-        return process_data[name](data)
-
-    urls = {
-        "cannonical":
-        "word.json/{word}?useCanonical=true&includeSuggestions=true",
-        "definitions":
-        "word.json/{word}/definitions?limit=200&includeRelated=true&sourceDictionaries=all&useCanonical=false&includeTags=false",
-        "relatedWords":
-        "word.json/{word}/relatedWords?useCanonical=false&limitPerRelationshipType=100",
-        "pronunciations":
-        "word.json/{word}/pronunciations?useCanonical=false&limit=50",
-        "phrases":
-        "word.json/{word}/phrases?limit=50&wlmi=0&useCanonical=false",
-        "audio":
-        "word.json/{word}/audio?useCanonical=false&limit=50",
-    }
-
-    for name, url in urls.items():
-        futures[name] = pool.submit(download_wordnik_data, (name, url))
-
-
 @app.route("/")
 def intro():
+    print(session.get('key', 'not set'))
+    session['key'] = 'value'
     return render_template('intro.html')
 
 
 def download(url, base_path):
     h = md5(url.encode()).hexdigest()
     filename = base_path + "/collection.media/" + h
-    r = requests.get(url)
+    r = requests.get(url, verify=False)
     with open(filename, 'wb') as fd:
         for chunk in r.iter_content(chunk_size=1024):
             fd.write(chunk)
@@ -246,41 +47,74 @@ def download(url, base_path):
 
 
 def resize_img(img_filename, max_size):
-    thumbnail_filename = "thumbnail_{}".format(img_filename)
+    thumbnail_filename = "thumbnail_{}.png".format(img_filename)
     try:
-        im = Image.open(img_filename).convert("RGB")
-        # width, height = im.size
-        # ratio = min(max_size/width, max_size/height)
-        # new_size = oldsize*ratio
-        im.thumbnail((max_size, max_size), Image.ANTIALIAS)
-        im.save(thumbnail_filename, "JPEG")
+        canvas = Image.open(img_filename).convert("RGBA")
+        canvas.thumbnail((max_size, max_size), Image.ANTIALIAS)
+        canvas.save(thumbnail_filename, "PNG")
     except IOError as e:
         print("cannot create thumbnail for '%s'" % img_filename)
+        print(e)
 
     return thumbnail_filename
 
 
-def process_data(data):
-    from anki import Collection as aopen
+def get_base_path(ankiweb_username):
+    return PROFILES_PATH.format(
+        ankiweb_username_base32=base64.b32encode(
+            bytes(ankiweb_username, encoding="utf-8")).decode("ascii"))
 
+
+def open_or_create_collection(ankiweb_username):
+    from anki import Collection
+    base_path = get_base_path(ankiweb_username)
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
+    collection = Collection(base_path + "/collection.anki2", log=True)
+    return collection
+
+
+def create_cloze_data(data):
+    sentences = []
+    if data["s"]:
+        sentences.append(data["s"][0])
+    if data.get("example"):
+        sentences += data["example"]
+    print(sentences)
+    word = data["w"][0]
+    return [highlight_sentence(sen, word, "{{c1::%s}}") for sen in sentences]
+
+
+def process_data(data):
     word = data["w"][0]
     with open("words_sumitted.txt", "a") as f:
         f.write("{}\n".format(word))
-
     data_json = json.dumps(data)
-    base_path = "/home/jiri/.local/share/Anki2/User 1/"
-    deck = aopen(base_path + "collection.anki2")
+    # from IPython import embed
+    # embed()
+
+    clozedeck = data["clozedeck"][0]
+    spellingdeck = data["spellingdeck"][0]
+    maindeck = data["maindeck"][0]
+
+    collection = open_or_create_collection(ankiweb_username)
     try:
-        deckId = deck.decks.id("English2")
-        deck.decks.select(deckId)
-        basic_model = deck.models.byName('Basic')
+        deckId = collection.decks.id(maindeck)
+        collection.decks.select(deckId)
+        basic_model = collection.models.byName('Basic')
         basic_model['did'] = deckId
-        deck.models.save(basic_model)
-        deck.models.setCurrent(basic_model)
-        fact = deck.newNote()
+        collection.models.save(basic_model)
+        collection.models.setCurrent(basic_model)
+        fact = collection.newNote()
         fact['Front'] = data["w"][0]
+        data["s_html"] = None
+        if data.get("s") in [["SEN"], ["None"], None]:
+            data["s"] = None
+        if data.get("s"):
+            data["s_html"] = highlight_sentence(data["s"][0], word)
 
         img_filename, audio_filename, img_resized_filename = "", "", ""
+        base_path = get_base_path(ankiweb_username)
         if data.get("image"):
             img_filename = download(data["image"][0], base_path)
             img_resized_filename = resize_img(img_filename, 500)
@@ -289,6 +123,12 @@ def process_data(data):
             audio_filename = download(data["audio"][0], base_path)
 
         definitions = []
+        if data.get("example"):
+            data["example"] = [
+                highlight_sentence(example, word)
+                for example in data["example"]
+            ]
+
         deliminer = "###!###"
         for item in (data.get("definition") or []):
             if item.find(deliminer) != -1:
@@ -297,8 +137,6 @@ def process_data(data):
                     pos, definition))
             else:
                 definitions.append(item)
-        # slovnik=[" - ".join(item.split("###!###")) for item in (data.get("slovnik") or [])],
-
         fact['Back'] = render_template(
             'anki_card.html',
             data=data,
@@ -308,21 +146,98 @@ def process_data(data):
             audio_filename=audio_filename,
             data_json=data_json)
 
-        deck.addNote(fact)
-        deck.save()
-        deck.close()
+        collection.addNote(fact)
+
+        collection.save()
+        collection.close()
+        collection = open_or_create_collection(ankiweb_username)
+
+        # creating cloze captions
+        deckId = collection.decks.id(clozedeck)
+        collection.decks.select(deckId)
+        basic_model = collection.models.byName('Cloze')
+        basic_model['did'] = deckId
+        collection.models.save(basic_model)
+        collection.models.setCurrent(basic_model)
+
+        translations_str = ", ".join(data.get("glosbe", []))
+        for cloze_sentence in create_cloze_data(data):
+            print("#", cloze_sentence)
+            fact = collection.newNote()
+
+            # from IPython import embed
+            # embed()
+            fact['Text'] = "{} ({})".format(cloze_sentence, translations_str)
+
+            ipas = ", ".join(data.get("pronunciations", []))
+            fact['Extra'] = "<hr>[sound:%s](%s)<br/><img src='%s' /><br/>" % (
+                audio_filename, ipas, img_resized_filename)
+            collection.addNote(fact)
+
+        collection.save()
+        collection.close()
+        collection = open_or_create_collection(ankiweb_username)
+        # creating cards w/ typing
+        if audio_filename:
+            print(maindeck, spellingdeck)
+            deckId = collection.decks.id(spellingdeck)
+            collection.decks.select(deckId)
+            basic_model = collection.models.byName('Text-input')
+            if not basic_model:
+                print("model text-input does not exist")
+                basic_model = json.load(open("data/Text-input-card.json"))
+                print(collection.models.add(basic_model))
+
+            # from IPython import embed
+            # embed()
+            basic_model['did'] = deckId
+            collection.models.save(basic_model)
+            collection.models.setCurrent(basic_model)
+
+            fact = collection.newNote()
+            fact["Front"] = "[sound:%s]" % audio_filename
+            fact["Back"] = word
+            # fact['Back'] = render_template(
+            #     'anki_card.html',
+            #     data=data,
+            #     glosbe=data.get("glosbe") or [],
+            #     definitions=definitions,
+            #     img_filename=img_resized_filename,
+            #     audio_filename=audio_filename,
+            #     data_json=data_json)
+
+            print(collection.addNote(fact))
+
+        collection.save()
+        collection.close()
     except:
-        deck.close()
+        collection.close()
         raise
 
 
-def highlight_sentence(sentence, word):
-    if type(sentence) == str:
-        words = nltk.word_tokenize(sentence)
-        best_match, _ = process.extractOne(word, words)
-        return sentence.replace(best_match, "<em>{}</em>".format(best_match))
-    else:
-        return sentence
+@app.route("/sync", methods=['POST'])
+def sync():
+    collection = open_or_create_collection(ankiweb_username)
+    from anki.sync import Syncer, RemoteServer, FullSyncer, MediaSyncer, RemoteMediaServer
+
+    server = RemoteServer(None)
+    hkey = server.hostKey(ankiweb_username, ankiweb_password)
+    syncer = Syncer(collection, server)
+    ret = syncer.sync()
+    print("ret:", ret)
+
+    if (ret == "fullSync"):
+        print("trying to do fullSync - upload - Not tested")
+        client = FullSyncer(collection, hkey, server.client)
+        print(client.upload())
+
+    mediaserver = RemoteMediaServer(collection, hkey, server.client)
+    mediaclient = MediaSyncer(collection, mediaserver)
+    mediaret = mediaclient.sync()
+    print("mediaret:", mediaret)
+    collection.save()
+    collection.close()
+    return render_template("success.html")
 
 
 @app.route("/word", methods=['GET', 'POST'])
@@ -330,15 +245,24 @@ def word():
     if request.method == 'POST':
         data_raw = dict(list(request.form.lists()))
         process_data(data_raw)
-
-        return render_template('success.html')
+        resp = make_response(render_template('success.html'))
+        resp.set_cookie('maindeck',
+                        bytes(data_raw["maindeck"][0], encoding="utf-8"))
+        resp.set_cookie('clozedeck',
+                        bytes(data_raw["clozedeck"][0], encoding="utf-8"))
+        resp.set_cookie('spellingdeck',
+                        bytes(data_raw["spellingdeck"][0], encoding="utf-8"))
+        return resp
 
     word = request.args['w']
     with open("words_loaded.txt", "a") as f:
         f.write("{}\n".format(word))
     # XXX: if word==None then we have trouble
     sentence = request.args.get('s')
-    sentence_hl = highlight_sentence(sentence, word)
+
+    maindeck = request.cookies.get('maindeck', "English2")
+    clozedeck = request.cookies.get('clozedeck', "English2Cloze")
+    spellingdeck = request.cookies.get('spellingdeck', "English2Spelling")
 
     suggestions = None
     if not hobj.spell(word):
@@ -347,13 +271,15 @@ def word():
     pool = ThreadPoolExecutor(50)
     futures = {}
 
-    get_images_data(word, pool, futures)
-    get_wordnik_data(word, pool, futures)
-    # get_slovnik_data(word, pool, futures)
-    get_glosbe_data(word, "eng", "ces", pool, futures)
-    get_pearson_data(word, pool, futures)
-    get_etymonline_data(word, pool, futures)
-    webster = get_webster_data(word)
+    apis.get_images_data(word, pool, futures)
+    apis.get_wordnik_data(word, pool, futures)
+    apis.get_glosbe_data(word, "eng", "ces", pool, futures)
+    apis.get_pearson_data(word, pool, futures)
+    apis.get_etymonline_data(word, pool, futures)
+    apis.get_flickr_data(word, pool, futures)
+    webster = apis.get_webster_data(word)
+    apis.get_wordsapi_data(word, pool, futures)
+
     beginning = time.time()
 
     not_finished = True
@@ -366,7 +292,6 @@ def word():
                     results[name] = future.result()
             else:
                 not_finished = True
-                # print (future, "is not done")
         time.sleep(0.3)
 
     pearson = results.get("pearson") or {}
@@ -374,11 +299,13 @@ def word():
         'word.html',
         word=word,
         sentence=sentence,
-        sentence_hl=sentence_hl,
         results=results,
         pearson=pearson,
         suggestions=suggestions,
-        webster=webster)
+        webster=webster,
+        maindeck=maindeck,
+        clozedeck=clozedeck,
+        spellingdeck=spellingdeck)
 
 
 app.secret_key = 'jdf5fgmb.45f§elpjh)2jk4545*/*/f8dh*/d.-,.'

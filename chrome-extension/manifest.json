@@ -5,7 +5,6 @@
   "description": "Quick and easy way of making anki flashcards. Shortcut: CTRL+select a word.",
   "version": "0.1",
 
-
   "browser_action": {
     "default_icon": "icon.png",
     "default_popup": "popup.html"
@@ -18,9 +17,9 @@
             "https://*/*"
             ],
         "js": ["inject_everywhere.js"],
-        "run_at": "document_end"         // pay attention to this line
+        "run_at": "document_end"
         }
-    ], 
+    ],
 
   "permissions": [
     "activeTab",

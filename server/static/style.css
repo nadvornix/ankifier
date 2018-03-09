@@ -5,3 +5,13 @@
     bottom: 10px;
     left: 10px;
 }
+.decknames {
+    position:fixed;
+    top: 10px;
+    right: 10px;
+}
+.syncform {
+    position:fixed;
+    bottom: 10px;
+    right: 10px;
+}

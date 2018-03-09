@@ -6,16 +6,36 @@
     <link rel="shortcut icon" href="/static/icon.png" />
     
     <link href="/static/style.css" rel="stylesheet"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <script>
+
+     function checkAll(selector){
+         $(selector).prop('checked', !$(selector).prop("checked"));
+     }
+    </script>
 </head>
 <body>
+    <div class="syncform">
+        <form method="POST" action="/sync">
+            <input type="submit" value="Sync ♻️">
+        </form>
+    </div>
 
-<form method="POST" action="">
-<input type="submit"></input><br>
+    <form method="POST" action="">
+        <div class="decknames">
+            <table>
+                <tr><td>en->cs deck</td><td><input type="text" name="maindeck" value="{{maindeck}}" /></td></tr>
+                <tr><td>cloze deck</td><td><input type="text" name="clozedeck" value="{{clozedeck}}" /></td></tr>
+                <tr><td>spelling deck</td><td><input type="text" name="spellingdeck" value="{{spellingdeck}}" /></td></tr>
+            </table>
+
+        </div>
+        <input type="submit"></input><br>
 Word: <input type="text" name="w" value="{{word}}"/><br>
-Sentence: {{sentence_hl|safe}}<input type="text" name="s" value="{{sentence|safe}}"/><br>
+Sentence: <textarea name="s" cols="70" rows="4.5">{{sentence|safe}}</textarea>
 
 {% if suggestions %}
-    Did you mean: 
+    <p>Did you mean: 
     {% for suggestion in suggestions %}
         <a href="/word?s={{sentence}}&w={{suggestion}}">{{suggestion}}</a>
     {% endfor %}
@@ -23,14 +43,16 @@ Sentence: {{sentence_hl|safe}}<input type="text" name="s" value="{{sentence|safe
 {% endif%}
 
 {%if 'cannonical' in results %}
-    <p>Cannonical: {{results.cannonical}} <br>
-{% endif %}
+        <p>Cannonical: {{results.cannonical}} <br>
+            {% endif %}
+
+            Frequency: {% if results.wordsapi.frequency %}{{results.wordsapi.frequency}} {% else %} 0 {% endif %}<br>
 
 Audio:
 {%if 'audios' in pearson %}
 <ul>
     {% for audio in pearson.audios %}
-        <li><label><input type="checkbox" name="audio" class="audioplayer" value="http://api.pearson.com{{audio.url}}">(pearson) <a href="http://api.pearson.com{{audio.url}}">{{audio.lang}}</a> <audio controls="controls" preload="auto"><source src="http://api.pearson.com{{audio.url}}" type="audio/mpeg" /></audio> {{audio.filename}}
+    <li><label><input type="checkbox" name="audio" class="audioplayer" value="http://api.pearson.com{{audio.url}}" {% if loop.first %}checked{% endif %}>(pearson) <a href="http://api.pearson.com{{audio.url}}">{{audio.lang}}</a> <audio controls="controls" preload="auto"><source src="http://api.pearson.com{{audio.url}}" type="audio/mpeg" /></audio> {{audio.filename}}
  </li>
     {%endfor%}
 </ul>
@@ -49,7 +71,7 @@ Pronunciations:
 {%if 'pronunciations' in results %}
     <ul>
     {%for p in results.pronunciations %}
-        <label><input type="checkbox" name="pronunciations" value="{{p.raw}}">{{p.raw}}</label><br>
+        <label><input type="checkbox" name="pronunciations" value="{{p.raw}}" >{{p.raw}}</label><br>
     {% endfor %}
     </ul>
 {% endif %}
@@ -58,18 +80,19 @@ Pronunciations:
 {% if 'ipas' in results.pearson %}
     <ul>
     {%for ipa in results.pearson.ipas %}
-        <label><input type="checkbox" name="pronunciations" value="{{ipa}}">{{ipa}}</label><br>
-    {% endfor %}
+        <label><input type="checkbox" name="pronunciations" value="{{ipa}}" {% if loop.first %}checked{% endif %}>{{ipa}}</label><br>
+        {% endfor %}
     </ul>
 {% endif %}
 
 {% if 'glosbe' in results %}
- Translations:
- <ul>
+    Translations:
+<ul>
+    <button onclick="checkAll('.translationCheckbox')" type="button">(un)check all</button><br/>
  {% for translation in results.glosbe.translations %}
-    <label><input type="checkbox" name="glosbe" value="{{translation}}" checked>{{translation}}</label><br>
+ <label><input type="checkbox" name="glosbe" class="translationCheckbox" value="{{translation}}" checked>{{translation}}</label><br>
  {% endfor %}
- </ul>
+</ul>
 {% endif%}
 
 Definitions:
@@ -108,130 +131,141 @@ Definitions:
 {% endif %}
 
 {% if webster.etymology %}
-<input type="checkbox" name="add_etymology">
-Webster: <textarea style="width: 50em; height: 3em">
-{% for etymology in webster.etymology %}{{etymology}}{% endfor%}
-</textarea><br/>
+<p>Webster: 
+{% for etymology in webster.etymology %}{{etymology}}<p>{% endfor%}
 {% endif %}
 
-{%if 'etymology' in results %}
-<input type="checkbox" name="add_etymology">
 Etymology:<p>
-    <textarea name="etymology" style="width:80em; height:10em"> {{results.etymology}}</textarea>
+    <textarea name="etymology" style="width:80em; height:10em">{% if results.etymology %}{{results.etymology}}{% endif %}</textarea>
     <br/></p>
-{% endif %}
 
-{%if 'examples' in pearson %}
-Examples:
-<ul>
-{%for e in pearson.examples %}
-    <li><label><input type="checkbox" name="example" value="{{e|safe}}">{{e|safe}}</label></li>
-{%endfor%}
-</ul>
-{% endif %}
+    {%if pearson.examples %}
+    Examples:
+    <button onclick="checkAll('.examplesCheckbox')" type="button">(un)check all</button><br/>
+    <ul>
+        {%for e in pearson.examples %}
+        <li><label><input type="checkbox" class="examplesCheckbox" name="example" value="{{e|safe}}" checked>{{e|safe}}</label></li>
+        {%endfor%}
+    </ul>
+    {% endif %}
 
-{%if 'equivalent' in results.relatedWords%}
-<strong>Equivalent</strong>: 
+    {%if 'equivalent' in results.relatedWords%}
+    <strong>Equivalent</strong>: 
+    <button onclick="checkAll('.equivalentCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords.equivalent %}
-        <label><input type="checkbox" name="equivalent" value="{{w}}" checked>{{w}}</label>, 
+    <label><input type="checkbox" class="equivalentCheckbox" name="equivalent" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
-{%endif%}
-{%if 'synonym' in results.relatedWords%}
-<strong>Synonym</strong>: 
+    {%endif%}
+    {%if 'synonym' in results.relatedWords%}
+    <strong>Synonym</strong>: 
+    <button onclick="checkAll('.synonymCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords.synonym %}
-        <label><input type="checkbox" name="synonym" value="{{w}}" checked>{{w}}</label>, 
+    <label><input type="checkbox" class="synonymCheckbox" name="synonym" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
-{%endif%}
-{%if 'variant' in results.relatedWords%}
-<strong>Variants</strong>: 
+    {%endif%}
+    {%if 'variant' in results.relatedWords%}
+    <strong>Variants</strong>: 
+    <button onclick="checkAll('.variantsCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords.variant %}
-        <label><input type="checkbox" name="variant" value="{{w}}">{{w}}</label>, 
+    <label><input type="checkbox" class="variantsCheckbox" name="variant" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
-{%endif%}
-{%if 'verb-stem' in results.relatedWords%}
-<strong>Verb stem</strong>: 
+    {%endif%}
+    {%if 'verb-stem' in results.relatedWords%}
+    <strong>Verb stem</strong>: 
+    <button onclick="checkAll('.verbStemCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["verb-stem"] %}
-        <label><input type="checkbox" name="verb-stem" value="{{w}}">{{w}}</label>, 
+    <label><input type="checkbox" class="verbStemCheckbox" name="verb-stem" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
-{%endif%}
-{%if 'related-word' in results["relatedWords"]%}
-<strong>Related words</strong>: 
+    {%endif%}
+    {%if 'related-word' in results["relatedWords"]%}
+    <strong>Related words</strong>: 
+    <button onclick="checkAll('.relateCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["related-word"] %}
-        <label><input type="checkbox" name="related-word" value="{{w}}">{{w}}</label>, 
+    <label><input type="checkbox" class="relateCheckbox" name="related-word" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
-{%endif%}
-{%if 'hypernym' in results["relatedWords"]%}
-<strong>Hypernyms</strong>: 
+    {%endif%}
+    {%if 'hypernym' in results["relatedWords"]%}
+    <strong>Hypernyms</strong>: 
+    <button onclick="checkAll('.hypernymCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["hypernym"] %}
-        <label><input type="checkbox" name="hypernym" value="{{w}}">{{w}}</label>, 
+    <label><input type="checkbox" class="hypernymCheckbox" name="hypernym" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'primary' in results["relatedWords"]%}
 <strong>Primary</strong>: 
-    {%for w in results.relatedWords["primary"] %}
-        <label><input type="checkbox" name="primary" value="{{w}}">{{w}}</label>, 
+<button onclick="checkAll('.primaryCheckbox')" type="button">(un)check all</button>
+{%for w in results.relatedWords["primary"] %}
+<label><input type="checkbox" class="relatedCheckbox" name="primary" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'same-context' in results["relatedWords"]%}
 <strong>Same context</strong>: 
+<button onclick="checkAll('.sameContextCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["same-context"] %}
-        <label><input type="checkbox" name="same-context" value="{{w}}">{{w}}</label>, 
+<label><input type="checkbox" class="sameContextCheckbox ame="same-context" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'antonym' in results["relatedWords"]%}
 <strong>Antonyms</strong>: 
-    {%for w in results.relatedWords["antonym"] %}
-        <label><input type="checkbox" name="antonym" value="{{w}}" checked>{{w}}</label>, 
+<button onclick="checkAll('.antonymCheckbox')" type="button">(un)check all</button>
+{%for w in results.relatedWords["antonym"] %}
+<label><input type="checkbox" class="relatedCheckbox" name="antonym" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'cross-reference' in results["relatedWords"]%}
 <strong>Cross reference</strong>: 
+<button onclick="checkAll('.crossrefCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["cross-reference"] %}
-        <label><input type="checkbox" name="cross-reference" value="{{w}}">{{w}}</label>, 
+<label><input type="checkbox" class="crossrefCheckbox" name="cross-reference" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'rhyme' in results["relatedWords"]%}
 <strong>Rhymes</strong>: 
+<button onclick="checkAll('.rhymeCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["rhyme"] %}
-        <label><input type="checkbox" name="rhyme" value="{{w}}">{{w}}</label>, 
+<label><input type="checkbox" class="rhymeCheckbox name="rhyme" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'form' in results["relatedWords"]%}
 <strong>Forms</strong>: 
+<button onclick="checkAll('.formsCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["form_"] %}
-        <label><input type="checkbox" name="form" value="{{w}}">{{w}}</label>, 
+<label><input type="checkbox" clas="formsCheckbox name="form" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'hyponym' in results["relatedWords"]%}
 <strong>Hyponym</strong>: 
+<button onclick="checkAll('.hyponymCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["hyponym"] %}
-        <label><input type="checkbox" name="hyponym" value="{{w}}" checked>{{w}}</label>, 
+<label><input type="checkbox" class="hyponymCheckbox" name="hyponym" value="{{w}}" checked>{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'inflected-form' in results["relatedWords"]%}
 <strong>Inflected form</strong>: 
+<button onclick="checkAll('.inflectedCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["inflected-form"] %}
-        <label><input type="checkbox" name="inflected-form" value="{{w}}">{{w}}</label>, 
+<label><input type="checkbox" class="inflectedCheckbox" name="inflected-form" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
 {%if 'verb-form' in results["relatedWords"]%}
 <strong>Verb form</strong>: 
+<button onclick="checkAll('.verbCheckbox')" type="button">(un)check all</button>
     {%for w in results.relatedWords["verb-form"] %}
-        <label><input type="checkbox" name="verb-form" value="{{w}}">{{w}}</label>, 
+<label><input type="checkbox" class="verbCheckbox" name="verb-form" value="{{w}}">{{w}}</label>, 
     {%endfor%}
     <br/>
 {%endif%}
@@ -263,12 +297,13 @@ Phrases:
 
 {# {{results.images}} #}
 
-{% if results.images %}
-    {% for image in results.images.images %}
-    <li><label><input type="radio" name="image" value="{{image.link}}"><img src="{{image.link}}" width=330>
-    {% endfor %}
-{%endif%}
-
+{% for image in results.images.images %}
+<li><label><input type="radio" name="image" value="{{image.link}}"><img src="{{image.link}}" width=330>
+{% endfor %}
+    <hr>
+{% for image in results.flickr %}
+<li><label><input type="radio" name="image" value="{{image}}"><img src="{{image}}" width=330>
+{% endfor %}
 
 <input type="submit" class="SubmitButton"></input>
 </form>

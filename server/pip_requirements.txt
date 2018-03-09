@@ -7,3 +7,4 @@ bs4
 send2trash
 httplib2
 hunspell
+Flask-Session
