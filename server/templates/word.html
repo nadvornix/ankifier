@@ -4,15 +4,9 @@
 <head>
     <title>{{word}} - Ankifier!</title>
     <link rel="shortcut icon" href="/static/icon.png" />
-    
     <link href="/static/style.css" rel="stylesheet"/>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
-    <script>
-
-     function checkAll(selector){
-         $(selector).prop('checked', !$(selector).prop("checked"));
-     }
-    </script>
+    <script src="/static/main.js"></script>
 </head>
 <body>
     <div class="syncform">
@@ -24,9 +18,9 @@
     <form method="POST" action="">
         <div class="decknames">
             <table>
-                <tr><td>en->cs deck</td><td><input type="text" name="maindeck" value="{{maindeck}}" /></td></tr>
-                <tr><td>cloze deck</td><td><input type="text" name="clozedeck" value="{{clozedeck}}" /></td></tr>
-                <tr><td>spelling deck</td><td><input type="text" name="spellingdeck" value="{{spellingdeck}}" /></td></tr>
+                <tr><td><input type="checkbox" name="use_maindeck" checked></td><td>en->cs deck</td><td><input type="text" name="maindeck" value="{{maindeck}}" /></td></tr>
+                <tr><td><input type="checkbox" name="use_clozedeck" checked></td><td>cloze deck</td><td><input type="text" name="clozedeck" value="{{clozedeck}}" /></td></tr>
+                <tr><td><input type="checkbox" name="use_spellingdeck" checked></td><td>spelling deck</td><td><input type="text" name="spellingdeck" value="{{spellingdeck}}" /></td></tr>
             </table>
 
         </div>
@@ -46,10 +40,10 @@ Sentence: <textarea name="s" cols="70" rows="4.5">{{sentence|safe}}</textarea>
         <p>Cannonical: {{results.cannonical}} <br>
             {% endif %}
 
-            Frequency: {% if results.wordsapi.frequency %}{{results.wordsapi.frequency}} {% else %} 0 {% endif %}<br>
+            {% if results.wordsapi and results.wordsapi.frequency %}<input type="hidden" name="frequency" value="{{results.wordsapi.frequency}}"/>Frequency: {{results.wordsapi.frequency}} {% else %} 0 {% endif %}<br>
 
 Audio:
-{%if 'audios' in pearson %}
+{% if 'audios' in pearson %}
 <ul>
     {% for audio in pearson.audios %}
     <li><label><input type="checkbox" name="audio" class="audioplayer" value="http://api.pearson.com{{audio.url}}" {% if loop.first %}checked{% endif %}>(pearson) <a href="http://api.pearson.com{{audio.url}}">{{audio.lang}}</a> <audio controls="controls" preload="auto"><source src="http://api.pearson.com{{audio.url}}" type="audio/mpeg" /></audio> {{audio.filename}}
@@ -144,7 +138,7 @@ Etymology:<p>
     <button onclick="checkAll('.examplesCheckbox')" type="button">(un)check all</button><br/>
     <ul>
         {%for e in pearson.examples %}
-        <li><label><input type="checkbox" class="examplesCheckbox" name="example" value="{{e|safe}}" checked>{{e|safe}}</label></li>
+        <li><label><input type="checkbox" class="examplesCheckbox" name="example" value="{{e}}" checked>{{e|safe}}</label></li>
         {%endfor%}
     </ul>
     {% endif %}

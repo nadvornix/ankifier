@@ -6,14 +6,16 @@ from hashlib import md5
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
+import pathlib
 import apis
 import hunspell
 import requests
 from flask import Flask, render_template, request, session, make_response
-from flask.ext.session import Session
+from flask_session import Session
 from PIL import Image
 from settings import *
-from utils import highlight_sentence
+from utils import highlight_sentence, unique_list
+from IPython import embed
 
 app = Flask(__name__, static_url_path='/static')
 
@@ -22,6 +24,7 @@ hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic',
 
 app.config.from_object(__name__)
 Session(app)
+SCRIPT_FILENAME = os.path.dirname(os.path.realpath(__file__))
 
 
 @app.before_request
@@ -38,12 +41,15 @@ def intro():
 
 def download(url, base_path):
     h = md5(url.encode()).hexdigest()
-    filename = base_path + "/collection.media/" + h
+    suffix = pathlib.Path(url).suffix
+
+    filename = "{}{}".format(h, suffix)
+    full_path = base_path + "/collection.media/" + filename
     r = requests.get(url, verify=False)
     with open(filename, 'wb') as fd:
         for chunk in r.iter_content(chunk_size=1024):
             fd.write(chunk)
-    return h
+    return full_path
 
 
 def resize_img(img_filename, max_size):
@@ -68,6 +74,7 @@ def get_base_path(ankiweb_username):
 def open_or_create_collection(ankiweb_username):
     from anki import Collection
     base_path = get_base_path(ankiweb_username)
+    print(base_path)
     if not os.path.exists(base_path):
         os.makedirs(base_path)
     collection = Collection(base_path + "/collection.anki2", log=True)
@@ -80,7 +87,6 @@ def create_cloze_data(data):
         sentences.append(data["s"][0])
     if data.get("example"):
         sentences += data["example"]
-    print(sentences)
     word = data["w"][0]
     return [highlight_sentence(sen, word, "{{c1::%s}}") for sen in sentences]
 
@@ -90,106 +96,112 @@ def process_data(data):
     with open("words_sumitted.txt", "a") as f:
         f.write("{}\n".format(word))
     data_json = json.dumps(data)
-    # from IPython import embed
     # embed()
 
     clozedeck = data["clozedeck"][0]
     spellingdeck = data["spellingdeck"][0]
     maindeck = data["maindeck"][0]
+    if data.get("example"):
+        data["example"] = unique_list(data["example"])
 
     collection = open_or_create_collection(ankiweb_username)
     try:
-        deckId = collection.decks.id(maindeck)
-        collection.decks.select(deckId)
-        basic_model = collection.models.byName('Basic')
-        basic_model['did'] = deckId
-        collection.models.save(basic_model)
-        collection.models.setCurrent(basic_model)
-        fact = collection.newNote()
-        fact['Front'] = data["w"][0]
-        data["s_html"] = None
-        if data.get("s") in [["SEN"], ["None"], None]:
-            data["s"] = None
-        if data.get("s"):
-            data["s_html"] = highlight_sentence(data["s"][0], word)
+        if data.get("use_maindeck"):
+            deckId = collection.decks.id(maindeck)
+            collection.decks.select(deckId)
+            basic_model = collection.models.byName('Basic')
+            basic_model['did'] = deckId
+            collection.models.save(basic_model)
+            collection.models.setCurrent(basic_model)
+            fact = collection.newNote()
+            fact['Front'] = data["w"][0]
+            data["s_html"] = None
+            if data.get("s") in [["SEN"], ["None"], None]:
+                data["s"] = None
+            if data.get("s"):
+                data["s_html"] = highlight_sentence(data["s"][0], word)
 
-        img_filename, audio_filename, img_resized_filename = "", "", ""
-        base_path = get_base_path(ankiweb_username)
-        if data.get("image"):
-            img_filename = download(data["image"][0], base_path)
-            img_resized_filename = resize_img(img_filename, 500)
+            img_filename, audio_filename, img_resized_filename = "", "", ""
+            base_path = get_base_path(ankiweb_username)
+            if data.get("image"):
+                img_filename = download(data["image"][0], base_path)
+                img_resized_filename = resize_img(img_filename, 500)
 
-        if data.get("audio"):
-            audio_filename = download(data["audio"][0], base_path)
+            if data.get("audio"):
+                audio_filename = download(data["audio"][0], base_path)
 
-        definitions = []
-        if data.get("example"):
-            data["example"] = [
-                highlight_sentence(example, word)
-                for example in data["example"]
-            ]
+            definitions = []
+            highlight_examples = []
+            if data.get("example"):
+                highlight_examples = [
+                    highlight_sentence(example, word)
+                    for example in data["example"]
+                ]
 
-        deliminer = "###!###"
-        for item in (data.get("definition") or []):
-            if item.find(deliminer) != -1:
-                pos, definition = item.split(deliminer)
-                definitions.append("<em>({0})</em> {1}".format(
-                    pos, definition))
-            else:
-                definitions.append(item)
-        fact['Back'] = render_template(
-            'anki_card.html',
-            data=data,
-            glosbe=data.get("glosbe") or [],
-            definitions=definitions,
-            img_filename=img_resized_filename,
-            audio_filename=audio_filename,
-            data_json=data_json)
+            deliminer = "###!###"
+            for item in (data.get("definition") or []):
+                if item.find(deliminer) != -1:
+                    pos, definition = item.split(deliminer)
+                    definitions.append("<em>({0})</em> {1}".format(
+                        pos, definition))
+                else:
+                    definitions.append(item)
+            fact['Back'] = render_template(
+                'anki_card.html',
+                data=data,
+                glosbe=data.get("glosbe") or [],
+                definitions=definitions,
+                img_filename=img_resized_filename,
+                audio_filename=audio_filename,
+                data_json=data_json,
+                highlight_eaxamples=highlight_examples)
 
-        collection.addNote(fact)
+            collection.addNote(fact)
 
-        collection.save()
-        collection.close()
+            collection.save()
+            collection.close()
         collection = open_or_create_collection(ankiweb_username)
 
         # creating cloze captions
-        deckId = collection.decks.id(clozedeck)
-        collection.decks.select(deckId)
-        basic_model = collection.models.byName('Cloze')
-        basic_model['did'] = deckId
-        collection.models.save(basic_model)
-        collection.models.setCurrent(basic_model)
+        if data.get("use_clozedeck"):
+            deckId = collection.decks.id(clozedeck)
+            collection.decks.select(deckId)
+            basic_model = collection.models.byName('Cloze')
+            basic_model['did'] = deckId
+            collection.models.save(basic_model)
+            collection.models.setCurrent(basic_model)
 
-        translations_str = ", ".join(data.get("glosbe", []))
-        for cloze_sentence in create_cloze_data(data):
-            print("#", cloze_sentence)
-            fact = collection.newNote()
+            translations_str = ", ".join(data.get("glosbe", []))
+            for cloze_sentence in create_cloze_data(data):
+                fact = collection.newNote()
 
-            # from IPython import embed
-            # embed()
-            fact['Text'] = "{} ({})".format(cloze_sentence, translations_str)
+                # from IPython import embed
+                # embed()
+                fact['Text'] = "{} ({})".format(cloze_sentence,
+                                                translations_str)
 
-            ipas = ", ".join(data.get("pronunciations", []))
-            fact['Extra'] = "<hr>[sound:%s](%s)<br/><img src='%s' /><br/>" % (
-                audio_filename, ipas, img_resized_filename)
-            collection.addNote(fact)
+                ipas = ", ".join(data.get("pronunciations", []))
+                fact[
+                    'Extra'] = "<hr>[sound:%s](%s)<br/><img src='%s' /><br/>" % (
+                        audio_filename, ipas, img_resized_filename)
+                collection.addNote(fact)
 
-        collection.save()
-        collection.close()
+            collection.save()
+            collection.close()
         collection = open_or_create_collection(ankiweb_username)
+
         # creating cards w/ typing
-        if audio_filename:
-            print(maindeck, spellingdeck)
+        if data.get("use_spellingdeck") and audio_filename:
             deckId = collection.decks.id(spellingdeck)
             collection.decks.select(deckId)
-            basic_model = collection.models.byName('Text-input')
+            basic_model = collection.models.byName('Text-input2')
             if not basic_model:
                 print("model text-input does not exist")
-                basic_model = json.load(open("data/Text-input-card.json"))
-                print(collection.models.add(basic_model))
 
-            # from IPython import embed
-            # embed()
+                basic_model = json.load(
+                    open(SCRIPT_FILENAME + "/data/Text-input-card.json"))
+                collection.models.add(basic_model)
+
             basic_model['did'] = deckId
             collection.models.save(basic_model)
             collection.models.setCurrent(basic_model)
@@ -197,19 +209,11 @@ def process_data(data):
             fact = collection.newNote()
             fact["Front"] = "[sound:%s]" % audio_filename
             fact["Back"] = word
-            # fact['Back'] = render_template(
-            #     'anki_card.html',
-            #     data=data,
-            #     glosbe=data.get("glosbe") or [],
-            #     definitions=definitions,
-            #     img_filename=img_resized_filename,
-            #     audio_filename=audio_filename,
-            #     data_json=data_json)
 
-            print(collection.addNote(fact))
+            collection.addNote(fact)
 
-        collection.save()
-        collection.close()
+            collection.save()
+            collection.close()
     except:
         collection.close()
         raise
@@ -224,7 +228,6 @@ def sync():
     hkey = server.hostKey(ankiweb_username, ankiweb_password)
     syncer = Syncer(collection, server)
     ret = syncer.sync()
-    print("ret:", ret)
 
     if (ret == "fullSync"):
         print("trying to do fullSync - upload - Not tested")
@@ -308,7 +311,7 @@ def word():
         spellingdeck=spellingdeck)
 
 
-app.secret_key = 'jdf5fgmb.45f§elpjh)2jk4545*/*/f8dh*/d.-,.'
+app.secret_key = flask_secret_key
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365 * 10)
 
 if __name__ == "__main__":

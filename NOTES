@@ -8,39 +8,33 @@ https://chrome.google.com/webstore/developer/dashboard
 
 NOTES:
 words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
-NÁPADY: 
-bylo by fajn moci v tomto rozhraní i vyrobit úplně vlastní kartičky
-pearson má u ipa britskou i americkou angličtinu. šla by udělat app která by trénovala lidi v rozdílech.
-používám jako zdroj knihy co čtu. Ale možná by bylo lepší mít frequency-wordlist.
-ipa -> pronountiation. (pearson posílá IPA přiřazený k jejich mp3)
-idea: využít nějak příbuznost slov (tj. přidávat celá významová hnízda?)
-	- a pak cvičit významové rozdíly.
-	- něco podobného doporučovali v knize z CFAR.
-spojit to s slovníkem cizích slov abz, nebo s tím co mám doma nebo s slovníkama z újč co mám v záložkách
-možnost dávat do anki slovníkové koncepty/hesla (tj. encyklopedické znalosti)
+
 
 STATE:
 
 1:
-nefunguje výběr štůsku pro cloze.
 pick a domain
 prepare deploy script
 nastavit logování vyjímek, a dát print->logging
 v rozšíření nastavit správnou adresu
 
-ignoruju nastavení štůsků v main.py
-dát sync při prvním přihlášení - tj při vytváření adresáře.
-otestovat jestli jsem nerozbil možnost použití decku Basic v jiných štůskách. Kvůli basic_model['did'] = deckId
-spravit výrobu spelling cards
+otestovat checkboxy u decknames
 
-udělat automaticék hledání příkladových vět /třeba včetně překladu) ve kterých bude více slov co už jsem se naučil a jedno nové.
-udělat počítadlo jak jsem daleko - kolik jsem se toho naučil. Plynulá znalost jazyka = 10 000 bodů
-lepší měřítko v tom kolik kartiček je v jakém stavu: jestli se furt věnuju jednoduchým, nebo jestli "mature" rostou. - a vidět rozdíly v čase.
-lidi co dělají dobré anki štůsky mohou mít dobré nápady.
-možnost měřit experimenty (a teĎ si to budu říkat nahlas...)
-mít měřítko "rychlosti učení" - jak dobře jsem si pamatoval/zapamatovával za jednu vteřinu v danou session.
+Mysterious None: barrow, denuncitation
+u cloze možná bude lepší slovíčka psát a na výslovnost mít jiný kartičky?
+je lepší když i na obrázku je napsáno slovo
+po syncu napsat něco jiného než po uložení kartičky
+dát sync při prvním přihlášení - tj při vytváření adresáře.
+pomocí fuzz.partial_ratio jde vybrat které slovo je nejbližší v audio - a to by šlo předvybrat
+pomocí fuzzywuzzy.process.dedupe jdou filtrovat examples
+git commit
+udělat kartičky pro speaking
+
+občas se neuloží obrázek (chasm, vicarious)
 
 2:
+ukázání že existují změny které nebyly syncnuty
+v příkladových větách odfiltrovat ty které jsou si příliš podobné (s moc malou vzájemnou editační vzdáleností)
 k vybrání slov v examples namísto L-distance můžu používat třeba stanford NLP nebo podobně (eg: avail is closer to "I" than to "availability")
 dát enaudio s textem "panache, as in "he dressed with panache" -> text input w/ spelling
 udělat kartičky specializované na výslovnost?
@@ -79,8 +73,14 @@ jednostraná editační vzdálenost znamená že mazání/přidávání znaků v
 spravit debugger
 - zkusil jsem a konsole tam stále neběhá. Nechápu proč. 
 zvážit jestli nerozšiřovat výber věty jen na pár slov.
+pearson má u ipa britskou i americkou angličtinu. šla by udělat app která by trénovala lidi v rozdílech.
+používám jako zdroj knihy co čtu. Ale možná by bylo lepší mít frequency-wordlist.
+ipa -> pronountiation. (pearson posílá IPA přiřazený k jejich mp3)
 
 3
+Možná automatická tvorba videí k cvičením "5s videa" -> doplnění slova z titulků. Buď z různých seriálů (ke kterým stáhnu spoustu anglických titulků) nebo z youtube videí.
+můj ankifier by šel udělat aby fungoval jak pro slova a jazyky tak třeba pro příkazy, čtení, ear training...
+můj ankifier: mít možnost dělat klávesové zkratky. A mít možnost si vzít cizí deck a vyházet co mne nezajímá.
 fluentcards:
   https://forum.language-learners.org/viewtopic.php?t=5762
   http://www.srscollector.com/
@@ -117,12 +117,22 @@ jiný program má funkci že když do text-inputu zadám synonymum k tomu co jse
 	-> můžeme používat wordnet k tomu abychom explicitně věděli že studujeme angličtinu.
 	- nikoli obecné SRS, jako anki.
 	- nebo bych tohle mohl udělat v ankifieru: dát do kartičky odkazy na slovíčka co už mám v anki
-
-# Víceuživatelská verze:
-deck.decks.allNames()
-
-pak:
-backups
+mojeanki: klíčové měřítko je míra užitečnosti slov naučených za minutu nebo podobné.
+myšlenka: graf cvičení který představuje závislosti na znalostech. Pro angličtinu je znalost učitelná relativně přímočaře. Ale pro matematiku je to lepší.
+udělat automaticék hledání příkladových vět /třeba včetně překladu) ve kterých bude více slov co už jsem se naučil a jedno nové.
+udělat počítadlo jak jsem daleko - kolik jsem se toho naučil. Plynulá znalost jazyka = 10 000 bodů
+lepší měřítko v tom kolik kartiček je v jakém stavu: jestli se furt věnuju jednoduchým, nebo jestli "mature" rostou. - a vidět rozdíly v čase.
+lidi co dělají dobré anki štůsky mohou mít dobré nápady.
+udělat app pro kindle která si také bude uchovávat věty (třeba po označení slova)
+možnost měřit experimenty (a teĎ si to budu říkat nahlas...)
+mít měřítko "rychlosti učení" - jak dobře jsem si pamatoval/zapamatovával za jednu vteřinu v danou session.
+nástroj pro spárování titulků co jsem kdysi chtěl udělat.
+při zjišťování jak je které slovo těžké je dobré rozclusterovat lidi podle jejich rodného jazyka
+idea: využít nějak příbuznost slov (tj. přidávat celá významová hnízda?)
+	- a pak cvičit významové rozdíly.
+	- něco podobného doporučovali v knize z CFAR.
+spojit to s slovníkem cizích slov abz, nebo s tím co mám doma nebo s slovníkama z újč co mám v záložkách
+možnost dávat do anki slovníkové koncepty/hesla (tj. encyklopedické znalosti)
 
 # Less important:
 vlastní slovo kt. zadat do bing images & drag&drop image selection
@@ -194,6 +204,3 @@ make it less fragile
 
 IDEAS:
 když mám zadat cat a zadám dog (existující kartička), tak mně to upozorní na to že je to už existující kartička
-
-AUTH:
-do not store their media, only mine.

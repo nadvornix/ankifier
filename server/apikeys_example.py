@@ -2,6 +2,8 @@
 rename this file to apikeys.py and fill in keys
 """
 
+flask_secret_key = "asdf"
+
 wordnikApiUrl = 'http://api.wordnik.com/v4/'
 wordnikApiKey = 'asdf'
 googleDevKey = "asdf"
