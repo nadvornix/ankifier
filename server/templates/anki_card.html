@@ -5,7 +5,7 @@
 {{pron}}{% if not loop.last %}, {% endif %}
 {% endfor %}
 </em>)
-{%endif%} {{data.frequency[0]}}
+{%endif%} {%if data.frequency %} {{data.frequency[0]}} {% endif %}
 {% if audio_filename %}
 [sound:{{audio_filename}}] </br>
 {% endif %}

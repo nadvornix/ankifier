@@ -16,6 +16,7 @@ from PIL import Image
 from settings import *
 from utils import highlight_sentence, unique_list
 from IPython import embed
+from fuzzywuzzy.process import dedupe as fuzzy_dedupe
 
 app = Flask(__name__, static_url_path='/static')
 
@@ -102,11 +103,12 @@ def process_data(data):
     spellingdeck = data["spellingdeck"][0]
     maindeck = data["maindeck"][0]
     if data.get("example"):
-        data["example"] = unique_list(data["example"])
+        data["example"] = fuzzy_dedupe(data["example"])
 
-    collection = open_or_create_collection(ankiweb_username)
+    collection = None
     try:
         if data.get("use_maindeck"):
+            collection = open_or_create_collection(ankiweb_username)
             deckId = collection.decks.id(maindeck)
             collection.decks.select(deckId)
             basic_model = collection.models.byName('Basic')
@@ -160,10 +162,10 @@ def process_data(data):
 
             collection.save()
             collection.close()
-        collection = open_or_create_collection(ankiweb_username)
 
         # creating cloze captions
         if data.get("use_clozedeck"):
+            collection = open_or_create_collection(ankiweb_username)
             deckId = collection.decks.id(clozedeck)
             collection.decks.select(deckId)
             basic_model = collection.models.byName('Cloze')
@@ -188,10 +190,10 @@ def process_data(data):
 
             collection.save()
             collection.close()
-        collection = open_or_create_collection(ankiweb_username)
 
         # creating cards w/ typing
         if data.get("use_spellingdeck") and audio_filename:
+            collection = open_or_create_collection(ankiweb_username)
             deckId = collection.decks.id(spellingdeck)
             collection.decks.select(deckId)
             basic_model = collection.models.byName('Text-input2')
@@ -215,7 +217,8 @@ def process_data(data):
             collection.save()
             collection.close()
     except:
-        collection.close()
+        if collection:
+            collection.close()
         raise
 
 
@@ -240,7 +243,7 @@ def sync():
     print("mediaret:", mediaret)
     collection.save()
     collection.close()
-    return render_template("success.html")
+    return render_template("success_sync.html")
 
 
 @app.route("/word", methods=['GET', 'POST'])
