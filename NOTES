@@ -1,10 +1,16 @@
 INSTALL:
-dependency: portaudio package in ubuntu
+conda create -n ankifier
+conda activate ankifier
+sudo apt-get install libhunspell-dev
+sudo apt-get install libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0
+sudo apt-get install ffmpeg libav-tools
+conda install python=3.5
 sudo apt-get install libhunspell-dev
 nltk.download('punkt')
 python3.5
 conda install --file conda_requirements.txt; pip install -r pip_requirements.txt
 https://chrome.google.com/webstore/developer/dashboard
+ln -s ~/.local/share/Anki2/User\ 1 NZQWI5TPOJXGS2ZONJUXE2KAM5WWC2LMFZRW63I= 
 
 NOTES:
 words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
@@ -17,10 +23,12 @@ pick a domain
 prepare deploy script
 nastavit logování vyjímek, a dát print->logging
 v rozšíření nastavit správnou adresu
+nastavit cílové jazyky (jiné než čeština)
 
 otestovat checkboxy u decknames
 
 Mysterious None: barrow, denuncitation
+
 u cloze možná bude lepší slovíčka psát a na výslovnost mít jiný kartičky?
 je lepší když i na obrázku je napsáno slovo
 po syncu napsat něco jiného než po uložení kartičky

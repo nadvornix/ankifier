@@ -19,6 +19,16 @@
         <input type="submit" value="Sync ♻️">
     </form>
 
+    <form method="POST" action="/set_lang">
+    <br>
+    Language of dictionary: <select name="lang_code">
+    {% for lang_code, lang_name in language_pairs.items() %}
+        <option value="{{lang_code}}" {% if selected_language == lang_code %} selected {% endif %} >{{lang_name}}</option>
+    {% endfor %}
+    </select>
+    <br>
+    <input type="submit" value="Save">
+    </form>
 
 </body>
 </html>

@@ -2,10 +2,17 @@ import nltk
 from fuzzywuzzy import process, fuzz
 
 
+def get_glosbe_lang_pairs():
+    with open("glosbe-languages.csv") as f:
+        data = f.readlines()
+        language_pairs = [tuple(line.split(";")) for line in data]
+        return dict(language_pairs)
+
+
 def my_extract_one(word, words):
     """ Nakonec možná byl bug někde jinde a i defaultní process.extractOne by stačil"""
-    ranked_words = sorted(
-        [(fuzz.ratio(word, w), w) for w in words], reverse=True)
+    ranked_words = sorted([(fuzz.ratio(word, w), w) for w in words],
+                          reverse=True)
     if ranked_words:
         return ranked_words[0][1]
     return None

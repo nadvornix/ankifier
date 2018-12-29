@@ -19,8 +19,10 @@
         <div class="decknames">
             <table>
                 <tr><td><input type="checkbox" name="use_maindeck" checked></td><td>en->cs deck</td><td><input type="text" name="maindeck" value="{{maindeck}}" /></td></tr>
-                <tr><td><input type="checkbox" name="use_clozedeck" checked></td><td>cloze deck</td><td><input type="text" name="clozedeck" value="{{clozedeck}}" /></td></tr>
-                <tr><td><input type="checkbox" name="use_spellingdeck" checked></td><td>spelling deck</td><td><input type="text" name="spellingdeck" value="{{spellingdeck}}" /></td></tr>
+                <!---
+                    <tr><td><input type="checkbox" name="use_clozedeck"></td><td>cloze deck</td><td><input type="text" name="clozedeck" value="{{clozedeck}}" /></td></tr>
+                    <tr><td><input type="checkbox" name="use_spellingdeck"></td><td>spelling deck</td><td><input type="text" name="spellingdeck" value="{{spellingdeck}}" /></td></tr>
+                --->
             </table>
 
         </div>
@@ -80,7 +82,7 @@ Pronunciations:
 {% endif %}
 
 {% if 'glosbe' in results %}
-    Translations:
+    Translations ({{selected_language}} <a href="/">change</a>):
 <ul>
     <button onclick="checkAll('.translationCheckbox')" type="button">(un)check all</button><br/>
  {% for translation in results.glosbe.translations %}

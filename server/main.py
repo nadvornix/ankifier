@@ -10,11 +10,11 @@ import pathlib
 import apis
 import hunspell
 import requests
-from flask import Flask, render_template, request, session, make_response
+from flask import Flask, render_template, request, session, make_response, redirect
 from flask_session import Session
 from PIL import Image
 from settings import *
-from utils import highlight_sentence, unique_list
+from utils import highlight_sentence, unique_list, get_glosbe_lang_pairs
 from IPython import embed
 from fuzzywuzzy.process import dedupe as fuzzy_dedupe
 
@@ -33,11 +33,24 @@ def make_session_permanent():
     session.permanent = True
 
 
+def selected_language():
+    return session.get("selected_language", "cs")
+
+
 @app.route("/")
 def intro():
-    print(session.get('key', 'not set'))
-    session['key'] = 'value'
-    return render_template('intro.html')
+    language_pairs = get_glosbe_lang_pairs()
+
+    return render_template(
+        'intro.html',
+        language_pairs=language_pairs,
+        selected_language=selected_language())
+
+
+@app.route("/set_lang", methods=['POST'])
+def set_lang():
+    session["selected_language"] = request.form["lang_code"]
+    return redirect("/")
 
 
 def download(url, base_path):
@@ -53,14 +66,15 @@ def download(url, base_path):
     return full_path
 
 
-def resize_img(img_filename, max_size):
+def resize_img(img_path, max_size):
+    img_filename = os.path.basename(img_path)
     thumbnail_filename = "thumbnail_{}.png".format(img_filename)
     try:
-        canvas = Image.open(img_filename).convert("RGBA")
+        canvas = Image.open(img_path).convert("RGBA")
         canvas.thumbnail((max_size, max_size), Image.ANTIALIAS)
         canvas.save(thumbnail_filename, "PNG")
     except IOError as e:
-        print("cannot create thumbnail for '%s'" % img_filename)
+        print("cannot create thumbnail for '%s'" % img_path)
         print(e)
 
     return thumbnail_filename
@@ -99,8 +113,8 @@ def process_data(data):
     data_json = json.dumps(data)
     # embed()
 
-    clozedeck = data["clozedeck"][0]
-    spellingdeck = data["spellingdeck"][0]
+    # clozedeck = data["clozedeck"][0]
+    # spellingdeck = data["spellingdeck"][0]
     maindeck = data["maindeck"][0]
     if data.get("example"):
         data["example"] = fuzzy_dedupe(data["example"])
@@ -164,58 +178,58 @@ def process_data(data):
             collection.close()
 
         # creating cloze captions
-        if data.get("use_clozedeck"):
-            collection = open_or_create_collection(ankiweb_username)
-            deckId = collection.decks.id(clozedeck)
-            collection.decks.select(deckId)
-            basic_model = collection.models.byName('Cloze')
-            basic_model['did'] = deckId
-            collection.models.save(basic_model)
-            collection.models.setCurrent(basic_model)
+    #     if data.get("use_clozedeck"):
+    #         collection = open_or_create_collection(ankiweb_username)
+    #         deckId = collection.decks.id(clozedeck)
+    #         collection.decks.select(deckId)
+    #         basic_model = collection.models.byName('Cloze')
+    #         basic_model['did'] = deckId
+    #         collection.models.save(basic_model)
+    #         collection.models.setCurrent(basic_model)
 
-            translations_str = ", ".join(data.get("glosbe", []))
-            for cloze_sentence in create_cloze_data(data):
-                fact = collection.newNote()
+    #         translations_str = ", ".join(data.get("glosbe", []))
+    #         for cloze_sentence in create_cloze_data(data):
+    #             fact = collection.newNote()
 
-                # from IPython import embed
-                # embed()
-                fact['Text'] = "{} ({})".format(cloze_sentence,
-                                                translations_str)
+    #             # from IPython import embed
+    #             # embed()
+    #             fact['Text'] = "{} ({})".format(cloze_sentence,
+    #                                             translations_str)
 
-                ipas = ", ".join(data.get("pronunciations", []))
-                fact[
-                    'Extra'] = "<hr>[sound:%s](%s)<br/><img src='%s' /><br/>" % (
-                        audio_filename, ipas, img_resized_filename)
-                collection.addNote(fact)
+    #             ipas = ", ".join(data.get("pronunciations", []))
+    #             fact[
+    #                 'Extra'] = "<hr>[sound:%s](%s)<br/><img src='%s' /><br/>" % (
+    #                     audio_filename, ipas, img_resized_filename)
+    #             collection.addNote(fact)
 
-            collection.save()
-            collection.close()
+    #         collection.save()
+    #         collection.close()
 
-        # creating cards w/ typing
-        if data.get("use_spellingdeck") and audio_filename:
-            collection = open_or_create_collection(ankiweb_username)
-            deckId = collection.decks.id(spellingdeck)
-            collection.decks.select(deckId)
-            basic_model = collection.models.byName('Text-input2')
-            if not basic_model:
-                print("model text-input does not exist")
+    #     # creating cards w/ typing
+    #     if data.get("use_spellingdeck") and audio_filename:
+    #         collection = open_or_create_collection(ankiweb_username)
+    #         deckId = collection.decks.id(spellingdeck)
+    #         collection.decks.select(deckId)
+    #         basic_model = collection.models.byName('Text-input2')
+    #         if not basic_model:
+    #             print("model text-input does not exist")
 
-                basic_model = json.load(
-                    open(SCRIPT_FILENAME + "/data/Text-input-card.json"))
-                collection.models.add(basic_model)
+    #             basic_model = json.load(
+    #                 open(SCRIPT_FILENAME + "/data/Text-input-card.json"))
+    #             collection.models.add(basic_model)
 
-            basic_model['did'] = deckId
-            collection.models.save(basic_model)
-            collection.models.setCurrent(basic_model)
+    #         basic_model['did'] = deckId
+    #         collection.models.save(basic_model)
+    #         collection.models.setCurrent(basic_model)
 
-            fact = collection.newNote()
-            fact["Front"] = "[sound:%s]" % audio_filename
-            fact["Back"] = word
+    #         fact = collection.newNote()
+    #         fact["Front"] = "[sound:%s]" % audio_filename
+    #         fact["Back"] = word
 
-            collection.addNote(fact)
+    #         collection.addNote(fact)
 
-            collection.save()
-            collection.close()
+    #         collection.save()
+    #         collection.close()
     except:
         if collection:
             collection.close()
@@ -224,8 +238,9 @@ def process_data(data):
 
 @app.route("/sync", methods=['POST'])
 def sync():
-    collection = open_or_create_collection(ankiweb_username)
     from anki.sync import Syncer, RemoteServer, FullSyncer, MediaSyncer, RemoteMediaServer
+
+    collection = open_or_create_collection(ankiweb_username)
 
     server = RemoteServer(None)
     hkey = server.hostKey(ankiweb_username, ankiweb_password)
@@ -254,10 +269,10 @@ def word():
         resp = make_response(render_template('success.html'))
         resp.set_cookie('maindeck',
                         bytes(data_raw["maindeck"][0], encoding="utf-8"))
-        resp.set_cookie('clozedeck',
-                        bytes(data_raw["clozedeck"][0], encoding="utf-8"))
-        resp.set_cookie('spellingdeck',
-                        bytes(data_raw["spellingdeck"][0], encoding="utf-8"))
+        # resp.set_cookie('clozedeck',
+        #                 bytes(data_raw["clozedeck"][0], encoding="utf-8"))
+        # resp.set_cookie('spellingdeck',
+        #                 bytes(data_raw["spellingdeck"][0], encoding="utf-8"))
         return resp
 
     word = request.args['w']
@@ -279,7 +294,7 @@ def word():
 
     apis.get_images_data(word, pool, futures)
     apis.get_wordnik_data(word, pool, futures)
-    apis.get_glosbe_data(word, "eng", "ces", pool, futures)
+    apis.get_glosbe_data(word, "eng", selected_language(), pool, futures)
     apis.get_pearson_data(word, pool, futures)
     apis.get_etymonline_data(word, pool, futures)
     apis.get_flickr_data(word, pool, futures)
@@ -301,6 +316,9 @@ def word():
         time.sleep(0.3)
 
     pearson = results.get("pearson") or {}
+
+    language_pairs = get_glosbe_lang_pairs()
+    # TODO: default lang is czech
     return render_template(
         'word.html',
         word=word,
@@ -311,7 +329,8 @@ def word():
         webster=webster,
         maindeck=maindeck,
         clozedeck=clozedeck,
-        spellingdeck=spellingdeck)
+        spellingdeck=spellingdeck,
+        selected_language=language_pairs[selected_language()])
 
 
 app.secret_key = flask_secret_key
