@@ -16,6 +16,10 @@ NOTES:
 words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done
 
 
+BUGS:
+- if login is new and bad, I still create empty collection
+- selected language bind to username, instead of session
+
 STATE:
 
 1:

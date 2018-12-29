@@ -26,9 +26,17 @@
         <option value="{{lang_code}}" {% if selected_language == lang_code %} selected {% endif %} >{{lang_name}}</option>
     {% endfor %}
     </select>
-    <br>
     <input type="submit" value="Save">
     </form>
-
+    <br>
+    <form method="POST" action="/logout">
+        <input type="submit" value="Logout">
+    </form>
+    <br>
+    <br>
+    <p>Danger: If there are problems with ankifier, you can try to delete copy of your deck that is on ankifier server. That should not affect your ankifier.net deck. But one never know.
+        <form method="POST" action="/destroy">
+            <input type="submit" style="color: red" value="☠️ Destroy ☠️">
+    </form>
 </body>
 </html>

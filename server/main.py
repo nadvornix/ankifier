@@ -2,6 +2,7 @@ import os
 import json
 import time
 import base64
+import shutil
 from hashlib import md5
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
@@ -10,8 +11,9 @@ import pathlib
 import apis
 import hunspell
 import requests
-from flask import Flask, render_template, request, session, make_response, redirect
+from flask import Flask, render_template, request, session, make_response, redirect, abort
 from flask_session import Session
+from flask_login import LoginManager, login_required, login_user, current_user, logout_user
 from PIL import Image
 from settings import *
 from utils import highlight_sentence, unique_list, get_glosbe_lang_pairs
@@ -25,7 +27,12 @@ hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic',
 
 app.config.from_object(__name__)
 Session(app)
+SESSION_TYPE = "filesystem"
 SCRIPT_FILENAME = os.path.dirname(os.path.realpath(__file__))
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
 
 
 @app.before_request
@@ -37,7 +44,34 @@ def selected_language():
     return session.get("selected_language", "cs")
 
 
+class User():
+    """All users are authenticated because we create this object only for authentificated users"""
+
+    def __init__(self, user_id):
+        self.is_authenticated = True
+        self.is_active = self.is_authenticated
+        self.is_anonymous = not self.is_authenticated
+        self.user_id = user_id
+
+    def get_id(self):
+        return self.user_id
+
+    @staticmethod
+    def get(user_id):
+        base_path = get_base_path(user_id)
+        if not os.path.exists(base_path):
+            return None
+        return User(user_id)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    # print("LOGIN: AAAA >%s<" % user_id)
+    return User.get(user_id)
+
+
 @app.route("/")
+@login_required
 def intro():
     language_pairs = get_glosbe_lang_pairs()
 
@@ -47,7 +81,56 @@ def intro():
         selected_language=selected_language())
 
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        # remember_me = request.form["remember_me"] == "on"
+
+        if sync_collection(username, password, "download"):
+            user = User.get(username)
+            login_user(user)
+        else:
+            return render_template('login.html', msg="Wrong login. Try again")
+
+        next = request.args.get('next')
+
+        # duplicity with flask-login, but I do not know how to load password for that
+        session["username"] = username
+        session["password"] = password
+
+        # vulnerability: open redirects. See http://flask.pocoo.org/snippets/62/
+        return redirect(next or "/")
+    return render_template('login.html')
+
+
+@app.route("/logout", methods=['POST'])
+@login_required
+def logout_page():
+    logout_user()
+    return redirect("/")
+
+
+def delete_dir_if_exists(path):
+    print("deleting: %s" % path)
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+
+
+@app.route("/destroy", methods=['POST'])
+@login_required
+def destroy():
+    user = current_user
+    delete_dir_if_exists(get_base_path(user.user_id))
+    delete_dir_if_exists(get_base_path(session["username"]))
+    logout_user()
+    session.clear()
+    return redirect("/")
+
+
 @app.route("/set_lang", methods=['POST'])
+@login_required
 def set_lang():
     session["selected_language"] = request.form["lang_code"]
     return redirect("/")
@@ -122,7 +205,8 @@ def process_data(data):
     collection = None
     try:
         if data.get("use_maindeck"):
-            collection = open_or_create_collection(ankiweb_username)
+            user = current_user
+            collection = open_or_create_collection(user.user_id)
             deckId = collection.decks.id(maindeck)
             collection.decks.select(deckId)
             basic_model = collection.models.byName('Basic')
@@ -138,7 +222,7 @@ def process_data(data):
                 data["s_html"] = highlight_sentence(data["s"][0], word)
 
             img_filename, audio_filename, img_resized_filename = "", "", ""
-            base_path = get_base_path(ankiweb_username)
+            base_path = get_base_path(user.user_id)
             if data.get("image"):
                 img_filename = download(data["image"][0], base_path)
                 img_resized_filename = resize_img(img_filename, 500)
@@ -236,32 +320,48 @@ def process_data(data):
         raise
 
 
-@app.route("/sync", methods=['POST'])
-def sync():
+def sync_collection(username, password, full_sync="upload"):
     from anki.sync import Syncer, RemoteServer, FullSyncer, MediaSyncer, RemoteMediaServer
 
-    collection = open_or_create_collection(ankiweb_username)
+    collection = open_or_create_collection(username)
 
     server = RemoteServer(None)
-    hkey = server.hostKey(ankiweb_username, ankiweb_password)
+    hkey = server.hostKey(username, password)
     syncer = Syncer(collection, server)
     ret = syncer.sync()
 
     if (ret == "fullSync"):
-        print("trying to do fullSync - upload - Not tested")
+        # print("trying to do fullSync - upload - Not tested")
         client = FullSyncer(collection, hkey, server.client)
-        print(client.upload())
+        if full_sync == "download":
+            client.download()
+        else:
+            client.upload()
+
+    if ret not in ("noChanges", "fullSync", "success"):
+        return False
 
     mediaserver = RemoteMediaServer(collection, hkey, server.client)
     mediaclient = MediaSyncer(collection, mediaserver)
-    mediaret = mediaclient.sync()
-    print("mediaret:", mediaret)
+    mediaclient.sync()
+    # print("mediasync returned:", mediaret)
     collection.save()
     collection.close()
-    return render_template("success_sync.html")
+
+    return True
+
+
+@app.route("/sync", methods=['POST'])
+@login_required
+def sync_page():
+    if sync_collection(session["username"], session["password"]):
+        return render_template("success_sync.html")
+    else:
+        abort(400)
 
 
 @app.route("/word", methods=['GET', 'POST'])
+@login_required
 def word():
     if request.method == 'POST':
         data_raw = dict(list(request.form.lists()))
