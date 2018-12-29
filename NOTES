@@ -5,12 +5,17 @@ sudo apt-get install libhunspell-dev
 sudo apt-get install libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0
 sudo apt-get install ffmpeg libav-tools
 conda install python=3.5
-sudo apt-get install libhunspell-dev
-nltk.download('punkt')
 python3.5
-conda install --file conda_requirements.txt; pip install -r pip_requirements.txt
+conda install --file conda_requirements.txt
+pip install -r pip_requirements.txt
+nltk.download('punkt')
 https://chrome.google.com/webstore/developer/dashboard
 ln -s ~/.local/share/Anki2/User\ 1 NZQWI5TPOJXGS2ZONJUXE2KAM5WWC2LMFZRW63I= 
+
+server: jiri@165.227.154.227/O
+
+DEPLOY:
+
 
 NOTES:
 words.txt -> chrome: cat words  | while read word; do google-chrome "http://localhost:5000/word?w=$word"; done

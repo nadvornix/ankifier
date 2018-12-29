@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Ankifier! login</title>
+        <link rel="stylesheet" type="text/css" href="static/style.css" />
+	      <script type="text/javascript" src="static/main.js"></script>
+    </head>
+    <body>
+
+        {% if msg %}
+        <h2>{{msg}}</h2>
+        {% endif %}
+        <form method="POST" action="">
+            Ankiweb.com username:<input type="text" name="username" value=""></input><br>
+            Ankiweb.com password: <input type="password" name="password" value=""></input><br>
+            <!-- remember me <input type="checkbox" name="remember_me" checked> -->
+            <br>
+            <input type="submit" value="Login"></input>
+        </form>
+    </body>
+</html>
