@@ -33,7 +33,8 @@ window.onload = function(){
                     sel.modify("extend", direction[0], "sentence");
                     var sentence = window.getSelection().toString(); 
                     sel.collapseToStart();
-                    window.open('http://localhost:5000/word?s='+sentence+'&w='+word, '_blank'); 
+                    window.open('http://ankireader.jirinadvornik.com/word?s='+sentence+'&w='+word, '_blank'); 
+                    // window.open('http://localhost:5000/word?s='+sentence+'&w='+word, '_blank'); 
                 }
             }
             // var selRange = word.getRangeAt(0);
