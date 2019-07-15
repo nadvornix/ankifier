@@ -61,7 +61,6 @@ TODO - server:
 - write deploy script
 - FileNotFoundError: [Errno 2] No such file or directory: 'glosbe-languages.csv'
 
-
 TODO:
 - how often do I sync? So I will not be blocked.
 - session["username"] is only a short session. It is sometime different from flask-login.current_user.user_id

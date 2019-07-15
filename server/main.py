@@ -3,9 +3,12 @@ import json
 import time
 import base64
 import shutil
+import logging
+from logging.handlers import RotatingFileHandler
 from hashlib import md5
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from urllib.parse import urlparse
 
 import pathlib
 import apis
@@ -26,6 +29,7 @@ hobj = hunspell.HunSpell('../spellcheck_dicts/en_GB.dic',
                          '../spellcheck_dicts/en_GB.aff')
 
 app.config.from_object(__name__)
+
 Session(app)
 SESSION_TYPE = "filesystem"
 SCRIPT_FILENAME = os.path.dirname(os.path.realpath(__file__))
@@ -33,6 +37,11 @@ SCRIPT_FILENAME = os.path.dirname(os.path.realpath(__file__))
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
+
+# import logging
+# logging.basicConfig(filename='flask-logging.log', level=logging.DEBUG)
+
+app.logger.info = print
 
 
 @app.before_request
@@ -66,7 +75,7 @@ class User():
 
 @login_manager.user_loader
 def load_user(user_id):
-    # print("LOGIN: AAAA >%s<" % user_id)
+    # app.logger.info("LOGIN: AAAA >%s<" % user_id)
     return User.get(user_id)
 
 
@@ -113,7 +122,7 @@ def logout_page():
 
 
 def delete_dir_if_exists(path):
-    print("deleting: %s" % path)
+    app.logger.info("deleting: %s" % path)
     if os.path.isdir(path):
         shutil.rmtree(path)
 
@@ -138,7 +147,14 @@ def set_lang():
 
 def download(url, base_path):
     h = md5(url.encode()).hexdigest()
-    suffix = pathlib.Path(url).suffix
+
+    # getting filename suffix, eg: .jpg.
+    # I do not know why do we want to keep suffixes
+    app.logger.info("url: %s" % url)
+    url_path = urlparse(url).path
+    app.logger.info("url_path: %s" % url_path)
+    suffix = pathlib.Path(url_path).suffix
+    app.logger.info("suffix %s" % suffix)
 
     filename = "{}{}".format(h, suffix)
     full_path = base_path + "/collection.media/" + filename
@@ -150,6 +166,7 @@ def download(url, base_path):
 
 
 def resize_img(img_path, max_size):
+    app.logger.info("img_path: %s" % img_path)
     img_filename = os.path.basename(img_path)
     thumbnail_filename = "thumbnail_{}.png".format(img_filename)
     try:
@@ -157,9 +174,9 @@ def resize_img(img_path, max_size):
         canvas.thumbnail((max_size, max_size), Image.ANTIALIAS)
         canvas.save(thumbnail_filename, "PNG")
     except IOError as e:
-        print("cannot create thumbnail for '%s'" % img_path)
-        print(e)
-
+        app.logger.info("cannot create thumbnail for '%s'" % img_path)
+        app.logger.info(e)
+    app.logger.info("tf: %s" % thumbnail_filename)
     return thumbnail_filename
 
 
@@ -172,7 +189,7 @@ def get_base_path(ankiweb_username):
 def open_or_create_collection(ankiweb_username):
     from anki import Collection
     base_path = get_base_path(ankiweb_username)
-    print(base_path)
+    app.logger.info(base_path)
     if not os.path.exists(base_path):
         os.makedirs(base_path)
     collection = Collection(base_path + "/collection.anki2", log=True)
@@ -296,7 +313,7 @@ def process_data(data):
     #         collection.decks.select(deckId)
     #         basic_model = collection.models.byName('Text-input2')
     #         if not basic_model:
-    #             print("model text-input does not exist")
+    #             app.logger.info("model text-input does not exist")
 
     #             basic_model = json.load(
     #                 open(SCRIPT_FILENAME + "/data/Text-input-card.json"))
@@ -326,12 +343,14 @@ def sync_collection(username, password, full_sync="upload"):
     collection = open_or_create_collection(username)
 
     server = RemoteServer(None)
+    app.logger.info("u: %s,pass: %s" % (username, password))
     hkey = server.hostKey(username, password)
     syncer = Syncer(collection, server)
     ret = syncer.sync()
+    app.logger.info("syncer return: %s" % ret)
 
     if (ret == "fullSync"):
-        # print("trying to do fullSync - upload - Not tested")
+        # app.logger.info("trying to do fullSync - upload - Not tested")
         client = FullSyncer(collection, hkey, server.client)
         if full_sync == "download":
             client.download()
@@ -339,12 +358,13 @@ def sync_collection(username, password, full_sync="upload"):
             client.upload()
 
     if ret not in ("noChanges", "fullSync", "success"):
+        collection.close()
         return False
 
     mediaserver = RemoteMediaServer(collection, hkey, server.client)
     mediaclient = MediaSyncer(collection, mediaserver)
-    mediaclient.sync()
-    # print("mediasync returned:", mediaret)
+    mediaret = mediaclient.sync()
+    app.logger.info("mediasync returned: %s" % mediaret)
     collection.save()
     collection.close()
 
@@ -436,5 +456,20 @@ def word():
 app.secret_key = flask_secret_key
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365 * 10)
 
+# formatter = logging.Formatter(
+#     "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # handler = RotatingFileHandler(
+    # 'flask-logging.log', maxBytes=1000 * 1000, backupCount=10)
+    # handler.setLevel(logging.DEBUG)
+    # handler.setFormatter(formatter)
+    # app.logger.addHandler(handler)
+
+    # log = logging.getLogger('werkzeug')
+    # log.setLevel(logging.DEBUG)
+    # log.addHandler(handler)
+
+    # from flask.logging import default_handler
+    # app.logger.removeHandler(default_handler)
+    app.run(debug=False, host="0.0.0.0")
