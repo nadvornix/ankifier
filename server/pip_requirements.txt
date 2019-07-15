@@ -9,4 +9,4 @@ httplib2
 hunspell
 Flask-Session
 Flask-Login
-uwsgi
+# uwsgi

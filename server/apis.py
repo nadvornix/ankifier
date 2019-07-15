@@ -162,7 +162,11 @@ def get_glosbe_data(word, from_, dest, pool, futures):
     def fut(word):
         json_doc = requests.get(
             url.format(word=word, from_=from_, dest=dest), verify=False).text
-        data = json.loads(json_doc)
+        try:
+            data = json.loads(json_doc)
+        except json.decoder.JSONDecodeError:
+            # TODO: Log that this went wrong
+            return {}  # TODO: what to return when things fail?
         translations = []
         definitions = []
         for item in data['tuc']:

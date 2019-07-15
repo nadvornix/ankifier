@@ -1,32 +1,54 @@
+REMOVE PREVIOUSLY INSTALLED:
+conda remove --name ankireader --all
+
+# optional:
+sudo apt-get purge libhunspell-dev
+sudo apt-get purge libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0
+sudo apt-get purge ffmpeg libav-tools
+
+
 INSTALL:
-conda create -n ankifier
-conda activate ankifier
+conda create -n ankireader python=3.5
+conda activate ankireader
 sudo apt-get install libhunspell-dev
 sudo apt-get install libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0
 sudo apt-get install ffmpeg libav-tools
-conda install python=3.5
-python3.5
-conda install --file conda_requirements.txt
-pip install -r pip_requirements.txt
-nltk.download('punkt')
-
-https://chrome.google.com/webstore/developer/dashboard
-ln -s ~/.local/share/Anki2/User\ 1 NZQWI5TPOJXGS2ZONJUXE2KAM5WWC2LMFZRW63I= 
-
-server: jiri@165.227.154.227/O
-https://cloud.digitalocean.com/droplets?i=8d7413
-
-INSTALL:
+#conda install python=3.5
+conda install --file server/conda_requirements.txt
+pip install -r server/pip_requirements.txt
 conda install -c conda-forge uwsgi
 conda install -c conda-forge libiconv
 
+python3.5
+import nltk; nltk.download('punkt')
+
+cd server
+server/run_debug.sh
+
+# put ankireader deck into anki:
+# create new profile and call it ankifier_test
+# sync it with nadv.o.rnik.jiri@gmail.com/heslo123
+ln -s ~/.local/share/Anki2/ankireader_test ~/ankifier_profiles/NZQWI5RON4XHE3TJNMXGU2LSNFAGO3LBNFWC4Y3PNU======
+
+NOTES:
+# to use ankireader on localhost to input directly into main deck (without syncing):
+ln -s ~/.local/share/Anki2/User\ 1 ~/ankifier_profiles/NZQWI5TPOJXGS2ZONJUXE2KAM5WWC2LMFZRW63I=
+
+server: jiri@165.227.154.227
+https://cloud.digitalocean.com/droplets?i=8d7413
+https://chrome.google.com/webstore/developer/dashboard
+
 DEBUG:
+# XXX: proč source activate, neběží to v condě?
 cd ankireader/ankifier/server/; source activate ankireader; python main.py
 sudo sshfs -o follow_symlinks,allow_other,IdentityFile=~/.ssh/id_rsa jiri@165.227.154.227:/ ~/ankireader
 
+TODO - APIS:
+- získat lepší limits od glosbe
 
 TODO - server:
 - grep ankifier
+- vojtova chyba: media nefungují (je tam někde napevno /home/jiri/)
 # - pustit na vyšším portu
 # - zkusit co to udělá.
 # - sshfs & přímá editace?
