@@ -833,7 +833,7 @@ and queue = 0""", intTime(), self.usn())
             limit=2+kwargs.get("stack", 0))[0]
         buf = "[%s] %s:%s(): %s" % (intTime(), os.path.basename(path), fn,
                                      ", ".join([customRepr(x) for x in args]))
-        self._logHnd.write(buf + "\n")
+        #self._logHnd.write(buf + "\n")
         if devMode:
             print(buf)
 
