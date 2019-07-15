@@ -9,12 +9,51 @@ python3.5
 conda install --file conda_requirements.txt
 pip install -r pip_requirements.txt
 nltk.download('punkt')
+
 https://chrome.google.com/webstore/developer/dashboard
 ln -s ~/.local/share/Anki2/User\ 1 NZQWI5TPOJXGS2ZONJUXE2KAM5WWC2LMFZRW63I= 
 
 server: jiri@165.227.154.227/O
+https://cloud.digitalocean.com/droplets?i=8d7413
 
-DEPLOY:
+INSTALL:
+conda install -c conda-forge uwsgi
+conda install -c conda-forge libiconv
+
+DEBUG:
+cd ankireader/ankifier/server/; source activate ankireader; python main.py
+sudo sshfs -o follow_symlinks,allow_other,IdentityFile=~/.ssh/id_rsa jiri@165.227.154.227:/ ~/ankireader
+
+
+TODO - server:
+- grep ankifier
+# - pustit na vyšším portu
+# - zkusit co to udělá.
+# - sshfs & přímá editace?
+# - ! Spravit obrázky a zvuk
+- trim the word of whitespaces on the ends
+- hází mi to gataway time-out a internal server errror - zvýšit počet vláken?
+- zkontrolovat jestli se nevytváří duplicity.
+- log exceptions
+- automatically get focus on the index page.
+- write deploy script
+- FileNotFoundError: [Errno 2] No such file or directory: 'glosbe-languages.csv'
+
+
+TODO:
+- how often do I sync? So I will not be blocked.
+- session["username"] is only a short session. It is sometime different from flask-login.current_user.user_id
+- show username of user loged-in
+- better settings: for dev & production & github environments
+- deploy script
+- backup/snapshot
+- manual/introduction for other people
+- complete renaming ankifier->ankireader, inc. conda env
+- debug_mode=False
+- publish extension properly
+- remember me
+- focus on box with word on /
+
 
 
 NOTES:
@@ -24,8 +63,6 @@ words.txt -> chrome: cat words  | while read word; do google-chrome "http://loca
 BUGS:
 - if login is new and bad, I still create empty collection
 - selected language bind to username, instead of session
-
-STATE:
 
 1:
 pick a domain
